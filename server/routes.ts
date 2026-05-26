@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import type { Automation, Session, Note } from "./types.js";
+import type { Automation, Session, Note, Task } from "./types.js";
 import { readStore, writeStore } from "./store.js";
 import { runAutomation, stopSession } from "./runner.js";
 import { scheduleAutomation, unscheduleAutomation } from "./scheduler.js";
@@ -10,6 +10,52 @@ import { readFileSync, existsSync, unlinkSync, realpathSync } from "fs";
 import { listMarketplace, installEntry, uninstallEntry } from "./marketplace.js";
 
 export const router = Router();
+
+// ── Tasks ─────────────────────────────────────────────────────────────────────
+
+function loadTasks(): Task[] {
+  return readStore<Task[]>("tasks.json", []);
+}
+
+router.get("/tasks", (_req: Request, res: Response) => {
+  res.json(loadTasks());
+});
+
+router.post("/tasks", (req: Request, res: Response) => {
+  const tasks = loadTasks();
+  const task: Task = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+    title: req.body.title ?? "Untitled",
+    description: req.body.description ?? "",
+    status: req.body.status ?? "backlog",
+    priority: req.body.priority ?? "medium",
+    assignee: req.body.assignee ?? "",
+    labels: req.body.labels ?? [],
+    deadline: req.body.deadline ?? null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  tasks.unshift(task);
+  writeStore("tasks.json", tasks);
+  res.status(201).json(task);
+});
+
+router.put("/tasks/:id", (req: Request, res: Response) => {
+  const tasks = loadTasks();
+  const idx = tasks.findIndex((t) => t.id === req.params.id);
+  if (idx === -1) { res.status(404).json({ error: "Task not found." }); return; }
+  tasks[idx] = { ...tasks[idx], ...req.body, id: tasks[idx].id, updatedAt: new Date().toISOString() };
+  writeStore("tasks.json", tasks);
+  res.json(tasks[idx]);
+});
+
+router.delete("/tasks/:id", (req: Request, res: Response) => {
+  const tasks = loadTasks();
+  const filtered = tasks.filter((t) => t.id !== req.params.id);
+  if (filtered.length === tasks.length) { res.status(404).json({ error: "Task not found." }); return; }
+  writeStore("tasks.json", filtered);
+  res.json({ ok: true });
+});
 
 // ── Notes ─────────────────────────────────────────────────────────────────────
 

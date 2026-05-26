@@ -10,6 +10,22 @@ export interface Automation {
   createdAt: string;
 }
 
+export type TaskStatus = "backlog" | "todo" | "in-progress" | "monitoring" | "blocked" | "done";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assignee: string;
+  labels: string[];
+  deadline: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Note {
   id: string;
   title: string;
