@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { Download, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Download, Trash2, X } from "lucide-react";
 import VersionDiff from "../components/VersionDiff";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { CapabilityType } from "../types";
 
 interface CatalogVersion {
@@ -19,6 +21,11 @@ interface MarketplaceEntry {
   versions: CatalogVersion[];
   installed: boolean;
   installedVersion?: string;
+}
+
+interface PreviewModal {
+  entry: MarketplaceEntry;
+  viewMode: "preview" | "raw" | "diff";
 }
 
 const TYPE_FILTERS: { value: CapabilityType | "all"; label: string }[] = [
@@ -51,19 +58,23 @@ const TYPE_COLORS: Record<string, string> = {
 export default function Marketplace() {
   const [entries, setEntries] = useState<MarketplaceEntry[]>([]);
   const [filter, setFilter] = useState<CapabilityType | "all">("all");
-  const [expandedChangelog, setExpandedChangelog] = useState<Set<string>>(new Set());
-  const [expandedDiff, setExpandedDiff] = useState<Set<string>>(new Set());
   const [pendingVersions, setPendingVersions] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [modal, setModal] = useState<PreviewModal | null>(null);
 
   useEffect(() => { fetchEntries(); }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setModal(null); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   async function fetchEntries() {
     try {
       const res = await fetch("/api/marketplace");
       const data: MarketplaceEntry[] = await res.json();
       setEntries(data);
-      // Default pending version to latest for each entry
       const defaults: Record<string, string> = {};
       for (const e of data) {
         defaults[e.id] = e.versions[e.versions.length - 1].version;
@@ -110,25 +121,30 @@ export default function Marketplace() {
     }
   }
 
-  function toggleChangelog(id: string) {
-    setExpandedChangelog((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  function openModal(entry: MarketplaceEntry) {
+    setModal({ entry, viewMode: "preview" });
   }
 
-  function toggleDiff(key: string) {
-    setExpandedDiff((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
+  // When entries refresh (after install/uninstall), keep modal entry in sync
+  useEffect(() => {
+    if (!modal) return;
+    const updated = entries.find((e) => e.id === modal.entry.id);
+    if (updated) setModal((m) => m ? { ...m, entry: updated } : m);
+  }, [entries]);
 
   const visible = filter === "all" ? entries : entries.filter((e) => e.type === filter);
+
+  const modalVersion = modal
+    ? (modal.entry.versions.find((v) => v.version === (pendingVersions[modal.entry.id] ?? modal.entry.versions[modal.entry.versions.length - 1].version)) ?? modal.entry.versions[modal.entry.versions.length - 1])
+    : null;
+
+  const modalVersionIndex = modal && modalVersion
+    ? modal.entry.versions.findIndex((v) => v.version === modalVersion.version)
+    : -1;
+
+  const modalPrevVersion = modal && modalVersionIndex > 0
+    ? modal.entry.versions[modalVersionIndex - 1]
+    : null;
 
   return (
     <div className="px-6 py-10">
@@ -163,141 +179,163 @@ export default function Marketplace() {
       {/* Cards */}
       <div className="space-y-3">
         {visible.map((entry) => {
-          const latest = entry.versions[entry.versions.length - 1];
-          const selectedVersion = pendingVersions[entry.id] ?? latest.version;
+          const selectedVersion = pendingVersions[entry.id] ?? entry.versions[entry.versions.length - 1].version;
           const isInstalled = entry.installed;
           const installedVersion = entry.installedVersion;
           const canUpgrade = isInstalled && installedVersion !== selectedVersion;
-          const changelogOpen = expandedChangelog.has(entry.id);
-          const hasMultipleVersions = entry.versions.length > 1;
           const busy = loading[entry.id];
 
           return (
-            <div key={entry.id} className="border border-gray-100 rounded-xl overflow-hidden">
-              {/* Card header */}
-              <div className="flex items-start gap-4 px-5 py-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-gray-900 text-sm">{entry.name}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${TYPE_COLORS[entry.type] ?? "bg-gray-100 text-gray-600"}`}>
-                      {entry.type}
+            <div
+              key={entry.id}
+              onClick={() => openModal(entry)}
+              className="border border-gray-100 rounded-xl px-5 py-4 flex items-start gap-4 cursor-pointer hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-gray-900 text-sm">{entry.name}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${TYPE_COLORS[entry.type] ?? "bg-gray-100 text-gray-600"}`}>
+                    {entry.type}
+                  </span>
+                  {isInstalled && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700">
+                      v{installedVersion}
                     </span>
-                    {isInstalled && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700">
-                        v{installedVersion}
+                  )}
+                </div>
+                <p className="text-sm text-gray-500">{entry.description}</p>
+                {entry.tags.length > 0 && (
+                  <div className="flex gap-1 mt-2 flex-wrap">
+                    {entry.tags.map((tag) => (
+                      <span key={tag} className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5">
+                        {tag}
                       </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500">{entry.description}</p>
-                  {entry.tags.length > 0 && (
-                    <div className="flex gap-1 mt-2 flex-wrap">
-                      {entry.tags.map((tag) => (
-                        <span key={tag} className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {/* Version picker */}
-                  <select
-                    value={selectedVersion}
-                    onChange={(e) => setPendingVersions((p) => ({ ...p, [entry.id]: e.target.value }))}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                  >
-                    {entry.versions.map((v) => (
-                      <option key={v.version} value={v.version}>
-                        v{v.version}
-                      </option>
                     ))}
-                  </select>
-
-                  {!isInstalled ? (
-                    <button
-                      onClick={() => install(entry.id)}
-                      disabled={busy}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-700 disabled:opacity-40 transition-colors"
-                    >
-                      <Download size={12} />
-                      Install
-                    </button>
-                  ) : (
-                    <>
-                      {canUpgrade && (
-                        <button
-                          onClick={() => upgrade(entry.id)}
-                          disabled={busy}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-700 disabled:opacity-40 transition-colors"
-                        >
-                          <Download size={12} />
-                          {selectedVersion > installedVersion! ? "Upgrade" : "Downgrade"}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => uninstall(entry.id)}
-                        disabled={busy}
-                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-40"
-                        title="Uninstall"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </>
-                  )}
-
-                  {hasMultipleVersions && (
-                    <button
-                      onClick={() => toggleChangelog(entry.id)}
-                      className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors"
-                      title="Changelog"
-                    >
-                      {changelogOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
-              {/* Changelog + diffs */}
-              {changelogOpen && hasMultipleVersions && (
-                <div className="border-t border-gray-50 px-5 py-4 space-y-3 bg-gray-50">
-                  {entry.versions.map((ver, idx) => {
-                    const diffKey = `${entry.id}-${ver.version}`;
-                    const hasPrev = idx > 0;
-                    const diffOpen = expandedDiff.has(diffKey);
+              {/* Actions — stop propagation so clicks here don't open modal */}
+              <div
+                className="flex items-center gap-2 flex-shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <select
+                  value={selectedVersion}
+                  onChange={(e) => setPendingVersions((p) => ({ ...p, [entry.id]: e.target.value }))}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  {entry.versions.map((v) => (
+                    <option key={v.version} value={v.version}>v{v.version}</option>
+                  ))}
+                </select>
 
-                    return (
-                      <div key={ver.version} className="space-y-2">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-medium text-gray-700">v{ver.version}</span>
-                          <span className="text-xs text-gray-400 flex-1">{ver.changelog}</span>
-                          {hasPrev && (
-                            <button
-                              onClick={() => toggleDiff(diffKey)}
-                              className="text-[10px] text-gray-400 hover:text-gray-700 underline transition-colors"
-                            >
-                              {diffOpen ? "Hide diff" : "Show diff"}
-                            </button>
-                          )}
-                        </div>
-                        {hasPrev && diffOpen && (
-                          <VersionDiff
-                            oldContent={entry.versions[idx - 1].content}
-                            newContent={ver.content}
-                            oldLabel={`v${entry.versions[idx - 1].version}`}
-                            newLabel={`v${ver.version}`}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                {!isInstalled ? (
+                  <button
+                    onClick={() => install(entry.id)}
+                    disabled={busy}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                  >
+                    <Download size={12} />
+                    Install
+                  </button>
+                ) : (
+                  <>
+                    {canUpgrade && (
+                      <button
+                        onClick={() => upgrade(entry.id)}
+                        disabled={busy}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                      >
+                        <Download size={12} />
+                        {selectedVersion > installedVersion! ? "Upgrade" : "Downgrade"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => uninstall(entry.id)}
+                      disabled={busy}
+                      className="p-1.5 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-40"
+                      title="Uninstall"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* Preview modal */}
+      {modal && modalVersion && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6"
+          onClick={() => setModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden"
+            style={{ maxHeight: "85vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-900">{modal.entry.name}</p>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${TYPE_COLORS[modal.entry.type] ?? "bg-gray-100 text-gray-600"}`}>
+                    {modal.entry.type}
+                  </span>
+                  <span className="text-xs text-gray-400">v{modalVersion.version}</span>
+                </div>
+              </div>
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs flex-shrink-0">
+                {(["preview", "raw", "diff"] as const).map((mode) => {
+                  const disabled = mode === "diff" && !modalPrevVersion;
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() => !disabled && setModal((m) => m ? { ...m, viewMode: mode } : m)}
+                      disabled={disabled}
+                      title={disabled ? "No previous version to diff against" : undefined}
+                      className={`px-3 py-1.5 capitalize transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                        modal.viewMode === mode ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-800"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  );
+                })}
+              </div>
+              <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-700 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className={`overflow-y-auto flex-1 ${modal.viewMode === "raw" ? "bg-gray-950" : "bg-white"}`}>
+              {modal.viewMode === "raw" ? (
+                <pre className="px-5 py-4 text-xs text-gray-300 font-mono whitespace-pre-wrap leading-relaxed">
+                  {modalVersion.content}
+                </pre>
+              ) : modal.viewMode === "diff" && modalPrevVersion ? (
+                <div className="p-4">
+                  <VersionDiff
+                    oldContent={modalPrevVersion.content}
+                    newContent={modalVersion.content}
+                    oldLabel={`v${modalPrevVersion.version}`}
+                    newLabel={`v${modalVersion.version}`}
+                  />
+                </div>
+              ) : (
+                <div className="px-6 py-5 prose prose-sm prose-gray max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{modalVersion.content}</ReactMarkdown>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

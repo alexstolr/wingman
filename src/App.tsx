@@ -9,6 +9,7 @@ import Automations from "./pages/Automations";
 import Marketplace from "./pages/Marketplace";
 import Scripts from "./pages/Scripts";
 import Integrations from "./pages/Integrations";
+import Communications from "./pages/Communications";
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/sessions" element={<Sessions />} />
             <Route path="/automations" element={<Automations />} />
+            <Route path="/communications" element={<Communications />} />
             <Route path="/scripts" element={<Scripts />} />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/marketplace" element={<Marketplace />} />

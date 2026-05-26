@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { House, Zap, FileText, ListTodo, MessageSquare, Bot, Store, Plug, ScrollText } from "lucide-react";
+import { House, Zap, FileText, ListTodo, MessageSquare, Bot, Store, Plug, ScrollText, Radio } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const tabs: { label: string; path: string; Icon: LucideIcon }[] = [
@@ -9,6 +9,7 @@ const tabs: { label: string; path: string; Icon: LucideIcon }[] = [
   { label: "Tasks", path: "/tasks", Icon: ListTodo },
   { label: "Sessions", path: "/sessions", Icon: MessageSquare },
   { label: "Automations", path: "/automations", Icon: Bot },
+  { label: "Communications", path: "/communications", Icon: Radio },
   { label: "Scripts", path: "/scripts", Icon: ScrollText },
   { label: "Integrations", path: "/integrations", Icon: Plug },
   { label: "Marketplace", path: "/marketplace", Icon: Store },
