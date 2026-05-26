@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/Header";
+import Home from "./pages/Home";
 import Capabilities from "./pages/Capabilities";
 import Notes from "./pages/Notes";
 import Tasks from "./pages/Tasks";
@@ -16,7 +17,8 @@ export default function App() {
         <Header />
         <main>
           <Routes>
-            <Route path="/" element={<Navigate to="/capabilities" replace />} />
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/home" element={<Home />} />
             <Route path="/capabilities" element={<Capabilities />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/tasks" element={<Tasks />} />

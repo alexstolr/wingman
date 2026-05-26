@@ -4,8 +4,46 @@ import type { Automation, Session } from "./types.js";
 import { readStore, writeStore } from "./store.js";
 import { runAutomation, stopSession } from "./runner.js";
 import { scheduleAutomation, unscheduleAutomation } from "./scheduler.js";
+import { getWingmanStatus, activate, deactivate } from "./wingman.js";
 
 export const router = Router();
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+
+router.get("/settings", (_req: Request, res: Response) => {
+  res.json(readStore("settings.json", { workspacePath: "" }));
+});
+
+router.post("/settings", (req: Request, res: Response) => {
+  const current = readStore("settings.json", { workspacePath: "" });
+  const updated = { ...current, ...req.body };
+  writeStore("settings.json", updated);
+  res.json(updated);
+});
+
+// ── Wingman activation ────────────────────────────────────────────────────────
+
+router.get("/wingman/status", (_req: Request, res: Response) => {
+  res.json(getWingmanStatus());
+});
+
+router.post("/wingman/activate", (_req: Request, res: Response) => {
+  try {
+    activate();
+    res.json(getWingmanStatus());
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+router.post("/wingman/deactivate", (_req: Request, res: Response) => {
+  try {
+    deactivate();
+    res.json(getWingmanStatus());
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
 
 // ── Automations ──────────────────────────────────────────────────────────────
 
