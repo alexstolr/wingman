@@ -8,6 +8,7 @@ import { getWingmanStatus, activate, deactivate } from "./wingman.js";
 import { scanCapabilities, clearCache } from "./scanner.js";
 import { readFileSync, existsSync, unlinkSync, realpathSync } from "fs";
 import { listMarketplace, installEntry, uninstallEntry } from "./marketplace.js";
+import { getHarnessStatuses, activateHarness, deactivateHarness, type HarnessName } from "./harness.js";
 
 export const router = Router();
 
@@ -229,6 +230,30 @@ router.post("/wingman/deactivate", (_req: Request, res: Response) => {
   try {
     deactivate();
     res.json(getWingmanStatus());
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// ── Harnesses ─────────────────────────────────────────────────────────────────
+
+router.get("/harnesses", (_req: Request, res: Response) => {
+  res.json(getHarnessStatuses());
+});
+
+router.post("/harnesses/:name/activate", (req: Request, res: Response) => {
+  try {
+    activateHarness(req.params.name as HarnessName);
+    res.json(getHarnessStatuses());
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+router.post("/harnesses/:name/deactivate", (req: Request, res: Response) => {
+  try {
+    deactivateHarness(req.params.name as HarnessName);
+    res.json(getHarnessStatuses());
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }

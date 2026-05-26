@@ -22,12 +22,21 @@ interface WingmanStatus {
   warning?: string;
 }
 
+interface HarnessStatus {
+  name: string;
+  label: string;
+  active: boolean;
+  description: string;
+}
+
 interface Settings {
   workspacePaths: string[];
 }
 
 export default function Home() {
   const [status, setStatus] = useState<WingmanStatus | null>(null);
+  const [harnesses, setHarnesses] = useState<HarnessStatus[]>([]);
+  const [harnessErrors, setHarnessErrors] = useState<Record<string, string>>({});
   const [workspacePaths, setWorkspacePaths] = useState<string[]>([]);
   const [addingNew, setAddingNew] = useState(false);
   const [newPath, setNewPath] = useState("");
@@ -45,17 +54,33 @@ export default function Home() {
 
   async function fetchAll() {
     try {
-      const [statusRes, settingsRes] = await Promise.all([
+      const [statusRes, settingsRes, harnessesRes] = await Promise.all([
         fetch("/api/wingman/status"),
         fetch("/api/settings"),
+        fetch("/api/harnesses"),
       ]);
       const s = await statusRes.json();
       const cfg: Settings = await settingsRes.json();
+      const h = await harnessesRes.json();
       setStatus(s);
       setWorkspacePaths(cfg.workspacePaths ?? []);
+      setHarnesses(h);
       setServerDown(false);
     } catch {
       setServerDown(true);
+    }
+  }
+
+  async function toggleHarness(harness: HarnessStatus) {
+    setHarnessErrors((prev) => ({ ...prev, [harness.name]: "" }));
+    const action = harness.active ? "deactivate" : "activate";
+    try {
+      const res = await fetch(`/api/harnesses/${harness.name}/${action}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) setHarnessErrors((prev) => ({ ...prev, [harness.name]: data.error }));
+      else setHarnesses(data);
+    } catch {
+      setHarnessErrors((prev) => ({ ...prev, [harness.name]: "Server unreachable." }));
     }
   }
 
@@ -164,6 +189,41 @@ export default function Home() {
               )}
             </>
           )}
+        </div>
+      </section>
+
+      {/* Harnesses */}
+      <section>
+        <div className="flex items-center gap-1.5 mb-4">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+            Harnesses
+          </h2>
+          <InfoTooltip text="Enable Wingman in each AI harness. Each one injects a persistent instruction pointing to ~/.wingman so capabilities are always available and applied." />
+        </div>
+
+        <div className="space-y-2">
+          {harnesses.map((h) => (
+            <div key={h.name} className="flex items-center gap-3 border border-gray-100 rounded-xl px-5 py-3.5">
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${h.active ? "bg-green-500" : "bg-gray-300"}`} />
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium text-gray-700">{h.label}</span>
+                <span className="ml-2 text-xs text-gray-400 font-mono">{h.description}</span>
+                {harnessErrors[h.name] && (
+                  <span className="ml-2 text-xs text-red-500">{harnessErrors[h.name]}</span>
+                )}
+              </div>
+              <button
+                onClick={() => toggleHarness(h)}
+                className={`px-3 py-1 text-xs rounded-lg border transition-colors ${
+                  h.active
+                    ? "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-800"
+                    : "bg-gray-900 text-white border-gray-900 hover:bg-gray-700"
+                }`}
+              >
+                {h.active ? "Disable" : "Enable"}
+              </button>
+            </div>
+          ))}
         </div>
       </section>
 
