@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import type { Automation, Session } from "./types.js";
+import type { Automation, Session, Note } from "./types.js";
 import { readStore, writeStore } from "./store.js";
 import { runAutomation, stopSession } from "./runner.js";
 import { scheduleAutomation, unscheduleAutomation } from "./scheduler.js";
@@ -10,6 +10,47 @@ import { readFileSync, existsSync, unlinkSync, realpathSync } from "fs";
 import { listMarketplace, installEntry, uninstallEntry } from "./marketplace.js";
 
 export const router = Router();
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+
+function loadNotes(): Note[] {
+  return readStore<Note[]>("notes.json", []);
+}
+
+router.get("/notes", (_req: Request, res: Response) => {
+  res.json(loadNotes());
+});
+
+router.post("/notes", (req: Request, res: Response) => {
+  const notes = loadNotes();
+  const note: Note = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+    title: req.body.title ?? "Untitled",
+    content: req.body.content ?? "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  notes.unshift(note);
+  writeStore("notes.json", notes);
+  res.status(201).json(note);
+});
+
+router.put("/notes/:id", (req: Request, res: Response) => {
+  const notes = loadNotes();
+  const idx = notes.findIndex((n) => n.id === req.params.id);
+  if (idx === -1) { res.status(404).json({ error: "Note not found." }); return; }
+  notes[idx] = { ...notes[idx], ...req.body, id: notes[idx].id, updatedAt: new Date().toISOString() };
+  writeStore("notes.json", notes);
+  res.json(notes[idx]);
+});
+
+router.delete("/notes/:id", (req: Request, res: Response) => {
+  const notes = loadNotes();
+  const filtered = notes.filter((n) => n.id !== req.params.id);
+  if (filtered.length === notes.length) { res.status(404).json({ error: "Note not found." }); return; }
+  writeStore("notes.json", filtered);
+  res.json({ ok: true });
+});
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
