@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import Home from "./pages/Home";
 import Capabilities from "./pages/Capabilities";
 import Notes from "./pages/Notes";
+import Documents from "./pages/Documents";
 import Tasks from "./pages/Tasks";
 import Sessions from "./pages/Sessions";
 import Automations from "./pages/Automations";
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/home" element={<Home />} />
             <Route path="/capabilities" element={<Capabilities />} />
             <Route path="/notes" element={<Notes />} />
+            <Route path="/documents" element={<Documents />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/sessions" element={<Sessions />} />
             <Route path="/automations" element={<Automations />} />

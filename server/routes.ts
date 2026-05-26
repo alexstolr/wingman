@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import type { Automation, Session, Note, Task } from "./types.js";
+import type { Automation, Session, Note, Document, Folder, Task } from "./types.js";
 import { readStore, writeStore } from "./store.js";
 import { runAutomation, stopSession } from "./runner.js";
 import { scheduleAutomation, unscheduleAutomation } from "./scheduler.js";
@@ -54,6 +54,105 @@ router.delete("/tasks/:id", (req: Request, res: Response) => {
   const filtered = tasks.filter((t) => t.id !== req.params.id);
   if (filtered.length === tasks.length) { res.status(404).json({ error: "Task not found." }); return; }
   writeStore("tasks.json", filtered);
+  res.json({ ok: true });
+});
+
+// ── Folders ───────────────────────────────────────────────────────────────────
+
+function loadFolders(): Folder[] {
+  return readStore<Folder[]>("folders.json", []);
+}
+
+router.get("/folders", (_req: Request, res: Response) => {
+  res.json(loadFolders());
+});
+
+router.post("/folders", (req: Request, res: Response) => {
+  const folders = loadFolders();
+  const folder: Folder = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+    name: req.body.name ?? "New folder",
+    parentId: req.body.parentId ?? null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  folders.push(folder);
+  writeStore("folders.json", folders);
+  res.status(201).json(folder);
+});
+
+router.put("/folders/:id", (req: Request, res: Response) => {
+  const folders = loadFolders();
+  const idx = folders.findIndex((f) => f.id === req.params.id);
+  if (idx === -1) { res.status(404).json({ error: "Folder not found." }); return; }
+  folders[idx] = { ...folders[idx], ...req.body, id: folders[idx].id, updatedAt: new Date().toISOString() };
+  writeStore("folders.json", folders);
+  res.json(folders[idx]);
+});
+
+router.delete("/folders/:id", (req: Request, res: Response) => {
+  const folderId = req.params.id;
+  let folders = loadFolders();
+
+  // Collect all descendant folder ids (BFS)
+  const toDelete = new Set<string>();
+  const queue = [folderId];
+  while (queue.length) {
+    const id = queue.shift()!;
+    toDelete.add(id);
+    folders.filter((f) => f.parentId === id).forEach((f) => queue.push(f.id));
+  }
+
+  folders = folders.filter((f) => !toDelete.has(f.id));
+  writeStore("folders.json", folders);
+
+  // Move orphaned documents to root
+  const docs = loadDocuments();
+  const updated = docs.map((d) => toDelete.has(d.folderId ?? "") ? { ...d, folderId: null } : d);
+  writeStore("documents.json", updated);
+
+  res.json({ ok: true });
+});
+
+// ── Documents ─────────────────────────────────────────────────────────────────
+
+function loadDocuments(): Document[] {
+  return readStore<Document[]>("documents.json", []);
+}
+
+router.get("/documents", (_req: Request, res: Response) => {
+  res.json(loadDocuments());
+});
+
+router.post("/documents", (req: Request, res: Response) => {
+  const docs = loadDocuments();
+  const doc: Document = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+    title: req.body.title ?? "Untitled",
+    content: req.body.content ?? "",
+    folderId: req.body.folderId ?? null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  docs.unshift(doc);
+  writeStore("documents.json", docs);
+  res.status(201).json(doc);
+});
+
+router.put("/documents/:id", (req: Request, res: Response) => {
+  const docs = loadDocuments();
+  const idx = docs.findIndex((d) => d.id === req.params.id);
+  if (idx === -1) { res.status(404).json({ error: "Document not found." }); return; }
+  docs[idx] = { ...docs[idx], ...req.body, id: docs[idx].id, updatedAt: new Date().toISOString() };
+  writeStore("documents.json", docs);
+  res.json(docs[idx]);
+});
+
+router.delete("/documents/:id", (req: Request, res: Response) => {
+  const docs = loadDocuments();
+  const filtered = docs.filter((d) => d.id !== req.params.id);
+  if (filtered.length === docs.length) { res.status(404).json({ error: "Document not found." }); return; }
+  writeStore("documents.json", filtered);
   res.json({ ok: true });
 });
 
