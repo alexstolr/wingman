@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { RefreshCw, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { RefreshCw, X, Filter } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Capability, CapabilityType } from "../types";
@@ -24,6 +24,7 @@ const HARNESS_COLORS: Record<string, string> = {
   codex:   "bg-green-50 text-green-700",
   grok:    "bg-gray-100 text-gray-600",
   copilot: "bg-sky-50 text-sky-600",
+  fleet:   "bg-teal-50 text-teal-700",
 };
 
 interface FileModal {
@@ -39,7 +40,27 @@ export default function Capabilities() {
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<FileModal | null>(null);
 
+  const [ignoreInput, setIgnoreInput] = useState("");
+  const [ignoreOpen, setIgnoreOpen] = useState(false);
+  const [ignoreSaving, setIgnoreSaving] = useState(false);
+  const ignoreRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => { fetchCapabilities(); }, []);
+
+  // Load saved ignore list from settings
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((s) => {
+        const names: string[] = s.capabilityIgnoreNames ?? [];
+        setIgnoreInput(names.join(", "));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (ignoreOpen) ignoreRef.current?.focus();
+  }, [ignoreOpen]);
 
   // Close modal on Escape
   useEffect(() => {
@@ -57,6 +78,25 @@ export default function Capabilities() {
       setAll(await res.json());
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function saveIgnoreList() {
+    setIgnoreSaving(true);
+    const names = ignoreInput
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capabilityIgnoreNames: names }),
+      });
+      await fetchCapabilities(true);
+      setIgnoreOpen(false);
+    } finally {
+      setIgnoreSaving(false);
     }
   }
 
@@ -82,14 +122,62 @@ export default function Capabilities() {
     <div className="px-6 py-10">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Capabilities</h1>
-        <button
-          onClick={() => fetchCapabilities(true)}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-40"
-        >
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Ignore list toggle */}
+          <div className="relative">
+            <button
+              onClick={() => setIgnoreOpen((o) => !o)}
+              className={[
+                "flex items-center gap-1.5 text-sm transition-colors",
+                ignoreOpen ? "text-gray-700" : "text-gray-400 hover:text-gray-700",
+              ].join(" ")}
+            >
+              <Filter size={14} />
+              Ignore list
+            </button>
+
+            {ignoreOpen && (
+              <div className="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-80">
+                <p className="text-xs text-gray-500 mb-2">
+                  Comma-separated file names to exclude (with or without extension).
+                </p>
+                <input
+                  ref={ignoreRef}
+                  type="text"
+                  value={ignoreInput}
+                  onChange={(e) => setIgnoreInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") saveIgnoreList(); if (e.key === "Escape") setIgnoreOpen(false); }}
+                  placeholder="INDEX, CONVENTIONS.md, 00-overview"
+                  className="w-full border border-gray-200 rounded px-2.5 py-1.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 mb-2"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setIgnoreOpen(false)}
+                    className="text-xs text-gray-400 hover:text-gray-700 px-2 py-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveIgnoreList}
+                    disabled={ignoreSaving}
+                    className="text-xs bg-gray-900 text-white rounded px-3 py-1 hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                  >
+                    {ignoreSaving ? "Saving…" : "Save & Refresh"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => fetchCapabilities(true)}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-40"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Sub-tabs */}
