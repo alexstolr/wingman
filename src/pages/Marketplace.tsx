@@ -146,7 +146,7 @@ export default function Marketplace() {
     : null;
 
   return (
-    <div className="px-6 py-10">
+    <div className="px-6 py-10 h-full overflow-y-auto">
       <h1 className="text-2xl font-semibold text-gray-900 mb-6">Marketplace</h1>
 
       {/* Filter bar */}
