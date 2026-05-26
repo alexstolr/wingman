@@ -5,6 +5,7 @@ export interface Automation {
   schedule: string;
   taskType: "claude" | "grok" | "cursor" | "codex";
   command: string;
+  cwd?: string;
   sync: boolean;
   enabled: boolean;
   createdAt: string;

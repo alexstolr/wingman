@@ -28,16 +28,30 @@ export function runAutomation(automation: Automation): Session {
   return session;
 }
 
-const CLI: Record<Automation["taskType"], string> = {
-  claude: "claude --print",
-  grok: "grok",
-  cursor: "cursor",
-  codex: "codex",
-};
-
 function buildCommand(automation: Automation): string {
-  const escaped = automation.command.replace(/"/g, '\\"');
-  return `${CLI[automation.taskType]} "${escaped}"`;
+  const prompt = automation.command.replace(/"/g, '\\"');
+  const cwd = automation.cwd?.trim();
+
+  switch (automation.taskType) {
+    case "grok":
+      return [
+        `grok -p "${prompt}"`,
+        "--yolo",
+        cwd ? `--cwd "${cwd}"` : "",
+      ].filter(Boolean).join(" ");
+
+    case "claude":
+      return `claude --print "${prompt}"`;
+
+    case "codex":
+      return `codex -q "${prompt}"`;
+
+    case "cursor":
+      return `cursor "${prompt}"`;
+
+    default:
+      return `${automation.taskType} "${prompt}"`;
+  }
 }
 
 function runSync(automation: Automation, sessionId: string) {

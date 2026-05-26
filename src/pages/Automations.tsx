@@ -53,6 +53,7 @@ const EMPTY_FORM = {
   schedule: "",
   taskType: "claude" as const,
   command: "",
+  cwd: "",
   sync: false,
   enabled: true,
 };
@@ -121,11 +122,12 @@ export default function Automations() {
       ) : (
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 text-left text-gray-500">
+              <tr className="border-b border-gray-100 text-left text-gray-500">
               <th className="pb-3 font-medium">Name</th>
               <th className="pb-3 font-medium">Type</th>
               <th className="pb-3 font-medium">Schedule</th>
               <th className="pb-3 font-medium">Task</th>
+              <th className="pb-3 font-medium">Working dir</th>
               <th className="pb-3 font-medium">Execution</th>
               <th className="pb-3 font-medium">Status</th>
               <th className="pb-3" />
@@ -138,6 +140,7 @@ export default function Automations() {
                 <td className="py-3 text-gray-500 capitalize">{a.scheduleType}</td>
                 <td className="py-3 text-gray-500 font-mono text-xs">{a.schedule}</td>
                 <td className="py-3 text-gray-500">{TOOL_LABELS[a.taskType] ?? a.taskType}</td>
+                <td className="py-3 text-gray-400 font-mono text-xs max-w-[160px] truncate" title={a.cwd}>{a.cwd || "—"}</td>
                 <td className="py-3 text-gray-500">{a.sync ? "Sync" : "Async"}</td>
                 <td className="py-3">
                   <button
@@ -152,17 +155,17 @@ export default function Automations() {
                   </button>
                 </td>
                 <td className="py-3">
-                  <div className="flex items-center gap-3 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-2 justify-end">
                     <button
                       onClick={() => runAutomation(a.id)}
-                      className="text-gray-400 hover:text-gray-800 transition-colors"
-                      title="Run now"
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs text-gray-600 border border-gray-200 rounded-lg hover:border-gray-400 hover:text-gray-900 transition-colors"
                     >
-                      <Play size={14} />
+                      <Play size={11} />
+                      Run now
                     </button>
                     <button
                       onClick={() => deleteAutomation(a.id)}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
+                      className="text-gray-300 hover:text-red-500 transition-colors"
                       title="Delete"
                     >
                       <Trash2 size={14} />
@@ -306,6 +309,21 @@ export default function Automations() {
                   onChange={(e) => setForm((f) => ({ ...f, command: e.target.value }))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
                   placeholder="Summarize today's AI news and save a report to ~/reports/ai-news.md"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Working directory
+                  {form.taskType === "grok" && (
+                    <span className="ml-2 text-xs font-normal text-gray-400">passed as <code className="font-mono">--cwd</code></span>
+                  )}
+                </label>
+                <input
+                  value={form.cwd}
+                  onChange={(e) => setForm((f) => ({ ...f, cwd: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  placeholder="/Users/you/Workspace/my-repo"
                 />
               </div>
 
