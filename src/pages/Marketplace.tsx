@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Download, Trash2, X } from "lucide-react";
+import { Download, X } from "lucide-react";
 import VersionDiff from "../components/VersionDiff";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -251,14 +251,13 @@ export default function Marketplace() {
                         {selectedVersion > installedVersion! ? "Upgrade" : "Downgrade"}
                       </button>
                     )}
-                    <button
-                      onClick={() => uninstall(entry.id)}
-                      disabled={busy}
-                      className="p-1.5 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-40"
-                      title="Uninstall"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                      <button
+                        onClick={() => uninstall(entry.id)}
+                        disabled={busy}
+                        className="px-2.5 py-1.5 text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 rounded-lg transition-colors disabled:opacity-40"
+                      >
+                        Uninstall
+                      </button>
                   </>
                 )}
               </div>

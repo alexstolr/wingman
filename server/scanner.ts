@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "fs";
+import { existsSync, readdirSync, realpathSync } from "fs";
 import { join, basename, extname, dirname } from "path";
 import { homedir } from "os";
 import { readStore } from "./store.js";
@@ -133,6 +133,8 @@ function walkDir(
 let cache: { data: Capability[]; ts: number } | null = null;
 const CACHE_TTL_MS = 10_000;
 
+export function clearCache() { cache = null; }
+
 export function scanCapabilities(force = false): Capability[] {
   if (!force && cache && Date.now() - cache.ts < CACHE_TTL_MS) return cache.data;
 
@@ -169,13 +171,20 @@ export function scanCapabilities(force = false): Capability[] {
     }
   }
 
-  // Deduplicate by path (a file could theoretically be reached via a symlink twice)
-  const seen = new Set<string>();
-  const deduped = all.filter((c) => {
-    if (seen.has(c.path)) return false;
-    seen.add(c.path);
-    return true;
-  });
+  // Deduplicate by real (symlink-resolved) path so ~/.wingman and
+  // {repo}/.wingman don't both appear when one is a symlink of the other.
+  // Prefer the global entry (scope="global") over repo entries when both
+  // resolve to the same file — so installed capabilities show as Global.
+  const byRealPath = new Map<string, Capability>();
+  for (const c of all) {
+    let real: string;
+    try { real = realpathSync(c.path); } catch { real = c.path; }
+    const existing = byRealPath.get(real);
+    if (!existing || (existing.scope === "repo" && c.scope === "global")) {
+      byRealPath.set(real, c);
+    }
+  }
+  const deduped = Array.from(byRealPath.values());
 
   cache = { data: deduped, ts: Date.now() };
   return deduped;

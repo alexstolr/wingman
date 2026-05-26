@@ -115,6 +115,20 @@ export default function Capabilities() {
     }
   }
 
+  function isManaged(cap: Capability) {
+    return cap.path.includes("/.wingman/") || cap.path.includes("\\.wingman\\");
+  }
+
+  async function uninstallCap(cap: Capability) {
+    await fetch("/api/capabilities", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: cap.path }),
+    });
+    setModal(null);
+    await fetchCapabilities(true);
+  }
+
   const visible = activeTab === "all" ? all : all.filter((c) => c.type === activeTab);
   const countFor = (t: CapabilityType) => all.filter((c) => c.type === t).length;
 
@@ -234,12 +248,17 @@ export default function Capabilities() {
       ) : (
         <div className="border border-gray-100 rounded-lg overflow-hidden divide-y divide-gray-50">
           {visible.map((cap) => (
-            <button
+            <div
               key={cap.id}
-              onClick={() => openFile(cap)}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50 transition-colors"
             >
-              <span className="font-medium text-gray-900 flex-1">{cap.name}</span>
+              {/* Clickable name area */}
+              <button
+                onClick={() => openFile(cap)}
+                className="font-medium text-gray-900 flex-1 text-left"
+              >
+                {cap.name}
+              </button>
               {activeTab === "all" && (
                 <span className="px-2 py-0.5 rounded text-xs font-medium capitalize flex-shrink-0 bg-gray-50 text-gray-500">
                   {cap.type}
@@ -254,7 +273,15 @@ export default function Capabilities() {
               <span className="text-gray-300 text-xs font-mono truncate max-w-xs flex-shrink-0 hidden lg:block">
                 {cap.path}
               </span>
-            </button>
+              {isManaged(cap) && (
+                <button
+                  onClick={() => uninstallCap(cap)}
+                  className="text-xs text-red-400 hover:text-red-600 transition-colors flex-shrink-0"
+                >
+                  Uninstall
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -279,6 +306,14 @@ export default function Capabilities() {
               <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize flex-shrink-0 ${HARNESS_COLORS[modal.cap.harness] ?? "bg-gray-100 text-gray-600"}`}>
                 {modal.cap.harness}
               </span>
+              {isManaged(modal.cap) && (
+                <button
+                  onClick={() => uninstallCap(modal.cap)}
+                  className="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 rounded px-2.5 py-1 transition-colors flex-shrink-0"
+                >
+                  Uninstall
+                </button>
+              )}
               {/* View toggle */}
               {modal.content && !modal.error && (
                 <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs flex-shrink-0">

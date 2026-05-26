@@ -5,8 +5,8 @@ import { readStore, writeStore } from "./store.js";
 import { runAutomation, stopSession } from "./runner.js";
 import { scheduleAutomation, unscheduleAutomation } from "./scheduler.js";
 import { getWingmanStatus, activate, deactivate } from "./wingman.js";
-import { scanCapabilities } from "./scanner.js";
-import { readFileSync, existsSync } from "fs";
+import { scanCapabilities, clearCache } from "./scanner.js";
+import { readFileSync, existsSync, unlinkSync, realpathSync } from "fs";
 import { listMarketplace, installEntry, uninstallEntry } from "./marketplace.js";
 
 export const router = Router();
@@ -71,6 +71,44 @@ router.get("/capabilities/content", (req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
+});
+
+router.delete("/capabilities", (req: Request, res: Response) => {
+  const filePath = req.body?.path as string;
+  if (!filePath) { res.status(400).json({ error: "Missing path." }); return; }
+  if (!filePath.includes(".wingman")) {
+    res.status(403).json({ error: "Only managed (.wingman) capabilities can be deleted." });
+    return;
+  }
+  if (!existsSync(filePath)) { res.status(404).json({ error: "File not found." }); return; }
+
+  // Resolve real path BEFORE deleting — realpathSync fails on missing files.
+  let realDeleted: string;
+  try { realDeleted = realpathSync(filePath); } catch { realDeleted = filePath; }
+
+  try {
+    unlinkSync(filePath);
+  } catch (err) {
+    res.status(500).json({ error: String(err) }); return;
+  }
+
+  // Clean up installed.json if this file was installed from the marketplace.
+  // Compare resolved paths because the UI path (~/.wingman/…) differs from
+  // the stored physical path ({repo}/.wingman/…) even though they're the same file.
+  type InstalledRecord = { version: string; installedAt: string; path: string };
+  const installed = readStore<Record<string, InstalledRecord>>("installed.json", {});
+  const id = Object.keys(installed).find((k) => {
+    let realStored: string;
+    try { realStored = realpathSync(installed[k].path); } catch { realStored = installed[k].path; }
+    return realStored === realDeleted;
+  });
+  if (id) {
+    delete installed[id];
+    writeStore("installed.json", installed);
+  }
+
+  clearCache();
+  res.json({ ok: true });
 });
 
 // ── Marketplace ──────────────────────────────────────────────────────────────
