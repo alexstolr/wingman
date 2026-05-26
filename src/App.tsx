@@ -33,6 +33,17 @@ export default function App() {
             <Route path="/marketplace" element={<Marketplace />} />
           </Routes>
         </main>
+        <footer className="shrink-0 border-t border-gray-100 px-6 py-2 text-center text-xs text-gray-400">
+          Built by{" "}
+          <a
+            href="https://alexstoliar.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-500 hover:text-gray-700 underline underline-offset-2 transition-colors"
+          >
+            Alex Stoliar
+          </a>
+        </footer>
       </div>
     </BrowserRouter>
   );

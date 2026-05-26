@@ -67,4 +67,8 @@ All user data (notes, documents, tasks, sessions, automations, settings) is stor
 
 ## License
 
-Copyright (c) 2026 Alex Stolr. All Rights Reserved. See [LICENSE](./LICENSE) for details.
+Copyright (c) 2026 Alex Stoliar. All Rights Reserved. See [LICENSE](./LICENSE) for details.
+
+---
+
+Built by [Alex Stoliar](https://alexstoliar.com) · [alexstoliar.com](https://alexstoliar.com)
