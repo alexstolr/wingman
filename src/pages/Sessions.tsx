@@ -147,6 +147,7 @@ export default function Sessions() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rawView, setRawView] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
   const outputRef = useRef<HTMLPreElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const hasRunning = sessions.some((s) => s.status === "running");
@@ -159,9 +160,10 @@ export default function Sessions() {
 
   // Auto-scroll when new output arrives for running sessions
   useEffect(() => {
+    if (!autoScroll) return;
     if (rawView) outputRef.current?.scrollTo(0, outputRef.current.scrollHeight);
     else bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [sessions, selectedId, rawView]);
+  }, [sessions, selectedId, rawView, autoScroll]);
 
   async function fetchSessions() {
     const res = await fetch("/api/sessions");
@@ -257,9 +259,18 @@ export default function Sessions() {
                 </div>
                 {/* View toggle — always shown when there's any output */}
                 {!selected.sync && hasOutput && (
-                  <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs flex-shrink-0 bg-white">
-                    <button onClick={() => setRawView(false)} className={`px-2.5 py-1 transition-colors ${!rawView ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-800"}`}>Events</button>
-                    <button onClick={() => setRawView(true)}  className={`px-2.5 py-1 transition-colors ${rawView  ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-800"}`}>Raw</button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => setAutoScroll((v) => !v)}
+                      title={autoScroll ? "Disable auto-scroll" : "Enable auto-scroll"}
+                      className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${autoScroll ? "border-blue-300 bg-blue-50 text-blue-600" : "border-gray-200 text-gray-400 hover:text-gray-700"}`}
+                    >
+                      Auto-scroll {autoScroll ? "on" : "off"}
+                    </button>
+                    <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs bg-white">
+                      <button onClick={() => setRawView(false)} className={`px-2.5 py-1 transition-colors ${!rawView ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-800"}`}>Events</button>
+                      <button onClick={() => setRawView(true)}  className={`px-2.5 py-1 transition-colors ${rawView  ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-800"}`}>Raw</button>
+                    </div>
                   </div>
                 )}
                 {selected.status === "running" && !selected.sync && (

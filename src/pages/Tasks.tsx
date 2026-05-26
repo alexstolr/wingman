@@ -260,14 +260,14 @@ function BoardView({ tasks, onEdit, onStatusChange }: BoardViewProps) {
   const [over, setOver] = useState<TaskStatus | null>(null);
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div className="flex gap-4 overflow-x-auto pb-4 items-start">
       {STATUSES.map((col) => {
         const colTasks = tasks.filter((t) => t.status === col.value);
         const isOver = over === col.value;
         return (
           <div
             key={col.value}
-            className={`flex-shrink-0 w-64 rounded-xl border transition-colors ${isOver ? "border-gray-400 bg-gray-50" : "border-gray-100 bg-gray-50/50"}`}
+            className={`flex-shrink-0 w-64 rounded-xl border transition-colors flex flex-col max-h-[calc(100vh-220px)] ${isOver ? "border-gray-400 bg-gray-50" : "border-gray-100 bg-gray-50/50"}`}
             onDragOver={(e) => { e.preventDefault(); setOver(col.value); }}
             onDragLeave={() => setOver(null)}
             onDrop={(e) => {
@@ -285,7 +285,7 @@ function BoardView({ tasks, onEdit, onStatusChange }: BoardViewProps) {
             </div>
 
             {/* Cards */}
-            <div className="p-2 space-y-2 min-h-16">
+            <div className="p-2 space-y-2 min-h-16 overflow-y-auto flex-1">
               {colTasks.map((task) => {
                 const p = priorityOf(task.priority);
                 const dl = formatDeadline(task.deadline);
@@ -419,7 +419,7 @@ export default function Tasks() {
   );
 
   return (
-    <div className="px-6 py-8">
+    <div className="px-6 py-8 h-full overflow-y-auto">
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Tasks</h1>
