@@ -1,3 +1,25 @@
+export type CapabilityType =
+  | "rules"
+  | "skills"
+  | "tools"
+  | "hooks"
+  | "agents"
+  | "conventions"
+  | "workflows"
+  | "prompts"
+  | "souls"
+  | "personas";
+
+export interface Capability {
+  id: string;
+  name: string;
+  type: CapabilityType;
+  harness: string;
+  scope: "global" | "repo";
+  repo?: string;
+  path: string;
+}
+
 export interface Automation {
   id: string;
   name: string;

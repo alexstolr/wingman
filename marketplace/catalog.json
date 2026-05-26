@@ -1,0 +1,127 @@
+[
+  {
+    "id": "ts-strict-rules",
+    "name": "TypeScript Strict Rules",
+    "type": "rules",
+    "description": "Opinionated TypeScript rules enforcing strict typing, no implicit any, and consistent import ordering.",
+    "author": "wingman",
+    "tags": ["typescript", "cursor"],
+    "versions": [
+      {
+        "version": "1.0.0",
+        "changelog": "Initial release.",
+        "content": "# TypeScript Strict Rules\n\n## Types\n- Always declare explicit return types on functions.\n- Never use `any`. Prefer `unknown` and narrow explicitly.\n- Use `type` for unions/intersections; use `interface` for object shapes that may be extended.\n\n## Imports\n- Group imports: external packages → internal modules → relative paths, each separated by a blank line.\n- Prefer named exports over default exports.\n\n## Safety\n- Enable `strictNullChecks`. Never suppress with `!` unless unavoidable.\n- Avoid `as` type assertions; use type guards instead.\n"
+      },
+      {
+        "version": "1.1.0",
+        "changelog": "Added enum and generics guidelines.",
+        "content": "# TypeScript Strict Rules\n\n## Types\n- Always declare explicit return types on functions.\n- Never use `any`. Prefer `unknown` and narrow explicitly.\n- Use `type` for unions/intersections; use `interface` for object shapes that may be extended.\n- Prefer `const` enums or string literal unions over regular enums.\n- Name generic parameters meaningfully (`TItem` not just `T`) unless it is a single-type utility.\n\n## Imports\n- Group imports: external packages → internal modules → relative paths, each separated by a blank line.\n- Prefer named exports over default exports.\n\n## Safety\n- Enable `strictNullChecks`. Never suppress with `!` unless unavoidable.\n- Avoid `as` type assertions; use type guards instead.\n- Use `satisfies` operator to validate shapes without widening.\n"
+      }
+    ]
+  },
+  {
+    "id": "conventional-commits",
+    "name": "Conventional Commits",
+    "type": "conventions",
+    "description": "Enforce Conventional Commits format for all commit messages to enable automated changelogs and semantic versioning.",
+    "author": "wingman",
+    "tags": ["git", "commits"],
+    "versions": [
+      {
+        "version": "1.0.0",
+        "changelog": "Initial release.",
+        "content": "# Conventional Commits Convention\n\nAll commit messages must follow the Conventional Commits specification.\n\n## Format\n```\n<type>[optional scope]: <description>\n\n[optional body]\n\n[optional footer]\n```\n\n## Types\n- `feat` — a new feature\n- `fix` — a bug fix\n- `docs` — documentation only\n- `refactor` — code change that neither fixes a bug nor adds a feature\n- `test` — adding or updating tests\n- `chore` — build process or tooling changes\n\n## Rules\n- Description must be lowercase and imperative mood: \"add feature\" not \"Added feature\".\n- Breaking changes must include `!` after the type or a `BREAKING CHANGE:` footer.\n"
+      },
+      {
+        "version": "1.1.0",
+        "changelog": "Added perf and ci types, tightened description rules.",
+        "content": "# Conventional Commits Convention\n\nAll commit messages must follow the Conventional Commits specification.\n\n## Format\n```\n<type>[optional scope]: <description>\n\n[optional body]\n\n[optional footer]\n```\n\n## Types\n- `feat` — a new feature\n- `fix` — a bug fix\n- `docs` — documentation only\n- `refactor` — code change that neither fixes a bug nor adds a feature\n- `test` — adding or updating tests\n- `chore` — build process or tooling changes\n- `perf` — performance improvement\n- `ci` — CI/CD configuration changes\n\n## Rules\n- Description must be lowercase and imperative mood: \"add feature\" not \"Added feature\".\n- Description must not end with a period.\n- Maximum 72 characters for the subject line.\n- Breaking changes must include `!` after the type or a `BREAKING CHANGE:` footer.\n"
+      }
+    ]
+  },
+  {
+    "id": "create-pr-skill",
+    "name": "Create PR",
+    "type": "skills",
+    "description": "Skill for creating well-structured pull requests with title, summary, and test plan.",
+    "author": "wingman",
+    "tags": ["git", "github", "cursor"],
+    "versions": [
+      {
+        "version": "1.0.0",
+        "changelog": "Initial release.",
+        "content": "# Create PR Skill\n\n## When to use\nUse when the user asks to create a pull request, open a PR, or submit changes for review.\n\n## Steps\n1. Run `git status` and `git diff main...HEAD` to understand all changes.\n2. Group changes into logical themes.\n3. Draft a PR title: `<type>: <concise description>` (Conventional Commits style).\n4. Write a summary with:\n   - What changed and why (not just what).\n   - Any trade-offs or decisions made.\n5. Write a test plan checklist.\n6. Create with `gh pr create`.\n\n## Rules\n- Never force-push to main.\n- Always check for existing open PRs on the same branch first.\n"
+      },
+      {
+        "version": "1.1.0",
+        "changelog": "Added reviewer and label suggestions.",
+        "content": "# Create PR Skill\n\n## When to use\nUse when the user asks to create a pull request, open a PR, or submit changes for review.\n\n## Steps\n1. Run `git status` and `git diff main...HEAD` to understand all changes.\n2. Group changes into logical themes.\n3. Draft a PR title: `<type>: <concise description>` (Conventional Commits style).\n4. Write a summary with:\n   - What changed and why (not just what).\n   - Any trade-offs or decisions made.\n5. Write a test plan checklist.\n6. Suggest reviewers based on `git log` authorship of touched files.\n7. Suggest labels based on change type (feature, bug, docs, etc.).\n8. Create with `gh pr create`.\n\n## Rules\n- Never force-push to main.\n- Always check for existing open PRs on the same branch first.\n- Add `[WIP]` prefix to title if work is not complete.\n"
+      }
+    ]
+  },
+  {
+    "id": "feature-dev-workflow",
+    "name": "Feature Development Workflow",
+    "type": "workflows",
+    "description": "End-to-end workflow for developing a new feature: branch → implement → test → PR → merge.",
+    "author": "wingman",
+    "tags": ["git", "workflow"],
+    "versions": [
+      {
+        "version": "1.0.0",
+        "changelog": "Initial release.",
+        "content": "# Feature Development Workflow\n\n## Steps\n\n1. **Branch** — Create a branch from main: `git checkout -b feat/<name>`.\n2. **Plan** — Write a brief implementation plan before coding. Identify edge cases.\n3. **Implement** — Write code in small, focused commits.\n4. **Test** — Verify manually and with automated tests if available.\n5. **PR** — Open a pull request using the Create PR skill.\n6. **Review** — Address all review comments before merging.\n7. **Merge** — Squash-merge into main. Delete the feature branch.\n\n## Rules\n- One feature per branch.\n- Commits must be atomic and passing.\n- Never merge without at least one review on team projects.\n"
+      }
+    ]
+  },
+  {
+    "id": "refactor-prompt",
+    "name": "Refactor Prompt",
+    "type": "prompts",
+    "description": "A structured prompt for requesting code refactoring with clear goals and constraints.",
+    "author": "wingman",
+    "tags": ["refactoring"],
+    "versions": [
+      {
+        "version": "1.0.0",
+        "changelog": "Initial release.",
+        "content": "# Refactor Prompt\n\nUse this prompt when asking an AI to refactor code:\n\n---\n\nRefactor the following code with these goals:\n- **Readability**: variable names should be self-documenting.\n- **Single responsibility**: each function should do one thing.\n- **No behaviour change**: the output must be identical for all inputs.\n\nConstraints:\n- Do not change the public API (function signatures, exports).\n- Do not add new dependencies.\n- Keep the same language and framework.\n\nAfter refactoring, briefly explain each change and why it improves the code.\n"
+      },
+      {
+        "version": "1.1.0",
+        "changelog": "Added performance and testability goals.",
+        "content": "# Refactor Prompt\n\nUse this prompt when asking an AI to refactor code:\n\n---\n\nRefactor the following code with these goals:\n- **Readability**: variable names should be self-documenting.\n- **Single responsibility**: each function should do one thing.\n- **No behaviour change**: the output must be identical for all inputs.\n- **Testability**: pure functions where possible; side effects isolated.\n- **Performance**: flag any O(n²) or worse operations and suggest improvements.\n\nConstraints:\n- Do not change the public API (function signatures, exports).\n- Do not add new dependencies.\n- Keep the same language and framework.\n\nAfter refactoring, briefly explain each change and why it improves the code.\n"
+      }
+    ]
+  },
+  {
+    "id": "pragmatic-soul",
+    "name": "Pragmatic Developer",
+    "type": "souls",
+    "description": "A no-nonsense, pragmatic soul that prioritises shipping working software over perfect architecture.",
+    "author": "wingman",
+    "tags": ["personality", "cursor", "claude"],
+    "versions": [
+      {
+        "version": "1.0.0",
+        "changelog": "Initial release.",
+        "content": "# Pragmatic Developer Soul\n\n## Voice\n- Direct and concise. Say what needs to be said, nothing more.\n- No corporate filler. Skip \"Great question!\", \"Certainly!\", \"Of course!\".\n- Confident. Commit to a recommendation instead of listing every option.\n\n## Opinions\n- Working code ships. Perfect architecture that never ships is worthless.\n- Simple solutions beat clever ones every time.\n- If a library solves the problem in 5 minutes, use it.\n\n## Behaviour\n- Point out bad ideas early, diplomatically but clearly.\n- When asked to choose, choose. Don't hedge.\n- Short answers unless depth is genuinely useful.\n"
+      }
+    ]
+  },
+  {
+    "id": "senior-engineer-persona",
+    "name": "Senior Engineer",
+    "type": "personas",
+    "description": "Persona of a senior engineer who considers system design, maintainability, and team impact.",
+    "author": "wingman",
+    "tags": ["persona", "cursor", "claude"],
+    "versions": [
+      {
+        "version": "1.0.0",
+        "changelog": "Initial release.",
+        "content": "# Senior Engineer Persona\n\nYou are a senior software engineer with 10+ years of experience across startups and large-scale systems.\n\n## How you think\n- Always consider the maintenance burden 6 months from now.\n- Think about how a junior engineer joining the team would understand this code.\n- System design decisions are permanent; implementation details can be changed.\n\n## How you communicate\n- Give concrete recommendations, not wishy-washy \"it depends\" answers.\n- Explain the why, not just the what.\n- Flag technical debt honestly without catastrophising.\n\n## What you value\n- Clarity over cleverness.\n- Consistency over individual preference.\n- Incremental improvement over big-bang rewrites.\n"
+      }
+    ]
+  }
+]

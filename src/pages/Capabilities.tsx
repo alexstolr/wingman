@@ -1,7 +1,247 @@
+import { useState, useEffect } from "react";
+import { RefreshCw, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { Capability, CapabilityType } from "../types";
+
+const TABS: { type: CapabilityType; label: string }[] = [
+  { type: "rules",       label: "Rules" },
+  { type: "skills",      label: "Skills" },
+  { type: "tools",       label: "Tools" },
+  { type: "hooks",       label: "Hooks" },
+  { type: "agents",      label: "Agents" },
+  { type: "conventions", label: "Conventions" },
+  { type: "workflows",   label: "Workflows" },
+  { type: "prompts",     label: "Prompts" },
+  { type: "souls",       label: "Souls" },
+  { type: "personas",    label: "Personas" },
+];
+
+const HARNESS_COLORS: Record<string, string> = {
+  cursor:  "bg-blue-50 text-blue-600",
+  claude:  "bg-orange-50 text-orange-600",
+  wingman: "bg-purple-50 text-purple-600",
+  codex:   "bg-green-50 text-green-700",
+  grok:    "bg-gray-100 text-gray-600",
+  copilot: "bg-sky-50 text-sky-600",
+};
+
+interface FileModal {
+  cap: Capability;
+  content: string | null;
+  error: string | null;
+  viewMode: "preview" | "raw";
+}
+
 export default function Capabilities() {
+  const [all, setAll] = useState<Capability[]>([]);
+  const [activeTab, setActiveTab] = useState<CapabilityType | "all">("all");
+  const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState<FileModal | null>(null);
+
+  useEffect(() => { fetchCapabilities(); }, []);
+
+  // Close modal on Escape
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setModal(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  async function fetchCapabilities(refresh = false) {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/capabilities${refresh ? "?refresh=true" : ""}`);
+      setAll(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openFile(cap: Capability) {
+    setModal({ cap, content: null, error: null, viewMode: "preview" });
+    try {
+      const res = await fetch(`/api/capabilities/content?path=${encodeURIComponent(cap.path)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setModal({ cap, content: null, error: data.error ?? "Unknown error", viewMode: "preview" });
+      } else {
+        setModal({ cap, content: data.content, error: null, viewMode: "preview" });
+      }
+    } catch (err) {
+      setModal({ cap, content: null, error: String(err), viewMode: "preview" });
+    }
+  }
+
+  const visible = activeTab === "all" ? all : all.filter((c) => c.type === activeTab);
+  const countFor = (t: CapabilityType) => all.filter((c) => c.type === t).length;
+
   return (
     <div className="px-6 py-10">
-      <h1 className="text-2xl font-semibold text-gray-900">Capabilities</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900">Capabilities</h1>
+        <button
+          onClick={() => fetchCapabilities(true)}
+          disabled={loading}
+          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-40"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          Refresh
+        </button>
+      </div>
+
+      {/* Sub-tabs */}
+      <div className="flex items-center gap-0.5 border-b border-gray-100 mb-6 overflow-x-auto">
+        {/* All tab */}
+        <button
+          onClick={() => setActiveTab("all")}
+          className={[
+            "relative flex items-center gap-1.5 px-3 py-2.5 text-sm whitespace-nowrap transition-colors",
+            activeTab === "all"
+              ? "text-gray-900 font-medium after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-gray-900 after:rounded-t"
+              : "text-gray-500 hover:text-gray-800",
+          ].join(" ")}
+        >
+          All
+          {all.length > 0 && (
+            <span className="text-[10px] font-medium bg-gray-100 text-gray-500 rounded px-1 py-0.5 leading-none">
+              {all.length}
+            </span>
+          )}
+        </button>
+
+        {TABS.map(({ type, label }) => {
+          const count = countFor(type);
+          return (
+            <button
+              key={type}
+              onClick={() => setActiveTab(type)}
+              className={[
+                "relative flex items-center gap-1.5 px-3 py-2.5 text-sm whitespace-nowrap transition-colors",
+                activeTab === type
+                  ? "text-gray-900 font-medium after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-gray-900 after:rounded-t"
+                  : "text-gray-500 hover:text-gray-800",
+              ].join(" ")}
+            >
+              {label}
+              {count > 0 && (
+                <span className="text-[10px] font-medium bg-gray-100 text-gray-500 rounded px-1 py-0.5 leading-none">
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* List */}
+      {visible.length === 0 ? (
+        <p className="text-sm text-gray-400 py-16 text-center">
+          {activeTab === "all"
+            ? "No capabilities found in any harness folder."
+            : `No ${activeTab} found in any harness folder.`}
+        </p>
+      ) : (
+        <div className="border border-gray-100 rounded-lg overflow-hidden divide-y divide-gray-50">
+          {visible.map((cap) => (
+            <button
+              key={cap.id}
+              onClick={() => openFile(cap)}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-gray-50 transition-colors"
+            >
+              <span className="font-medium text-gray-900 flex-1">{cap.name}</span>
+              {activeTab === "all" && (
+                <span className="px-2 py-0.5 rounded text-xs font-medium capitalize flex-shrink-0 bg-gray-50 text-gray-500">
+                  {cap.type}
+                </span>
+              )}
+              <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize flex-shrink-0 ${HARNESS_COLORS[cap.harness] ?? "bg-gray-100 text-gray-600"}`}>
+                {cap.harness}
+              </span>
+              <span className="text-gray-400 text-xs flex-shrink-0">
+                {cap.scope === "global" ? "Global" : cap.repo}
+              </span>
+              <span className="text-gray-300 text-xs font-mono truncate max-w-xs flex-shrink-0 hidden lg:block">
+                {cap.path}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* File viewer modal */}
+      {modal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6"
+          onClick={() => setModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden"
+            style={{ maxHeight: "80vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">{modal.cap.name}</p>
+                <p className="text-xs text-gray-400 font-mono truncate mt-0.5">{modal.cap.path}</p>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize flex-shrink-0 ${HARNESS_COLORS[modal.cap.harness] ?? "bg-gray-100 text-gray-600"}`}>
+                {modal.cap.harness}
+              </span>
+              {/* View toggle */}
+              {modal.content && !modal.error && (
+                <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs flex-shrink-0">
+                  {(["preview", "raw"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setModal((m) => m ? { ...m, viewMode: mode } : m)}
+                      className={`px-3 py-1.5 capitalize transition-colors ${
+                        modal.viewMode === mode
+                          ? "bg-gray-900 text-white"
+                          : "text-gray-500 hover:text-gray-800"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => setModal(null)}
+                className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className={`overflow-y-auto flex-1 ${modal.viewMode === "preview" ? "bg-white" : "bg-gray-950"}`}>
+              {modal.error ? (
+                <div className="px-5 py-4">
+                  <p className="text-xs text-red-500 font-mono">{modal.error}</p>
+                </div>
+              ) : modal.content === null ? (
+                <div className="px-5 py-4">
+                  <p className="text-xs text-gray-400">Loading…</p>
+                </div>
+              ) : modal.viewMode === "raw" ? (
+                <pre className="px-5 py-4 text-xs text-gray-300 font-mono whitespace-pre-wrap leading-relaxed">
+                  {modal.content}
+                </pre>
+              ) : (
+                <div className="px-6 py-5 prose prose-sm prose-gray max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {modal.content}
+                  </ReactMarkdown>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

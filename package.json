@@ -4,25 +4,30 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "tsx server/index.ts",
+    "dev:server": "tsx watch server/index.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tailwindcss/typography": "^0.5.19",
     "cors": "^2.8.6",
     "cron-parser": "^5.5.0",
     "cronstrue": "^3.14.0",
+    "diff": "^9.0.0",
     "express": "^5.2.1",
     "lucide-react": "^0.511.0",
     "node-cron": "^4.2.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.1"
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.6.1",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.8",
     "@types/cors": "^2.8.19",
+    "@types/diff": "^7.0.2",
     "@types/express": "^5.0.6",
     "@types/node": "^25.9.1",
     "@types/node-cron": "^3.0.11",

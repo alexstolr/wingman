@@ -5,6 +5,9 @@ import { readStore, writeStore } from "./store.js";
 import { runAutomation, stopSession } from "./runner.js";
 import { scheduleAutomation, unscheduleAutomation } from "./scheduler.js";
 import { getWingmanStatus, activate, deactivate } from "./wingman.js";
+import { scanCapabilities } from "./scanner.js";
+import { readFileSync, existsSync } from "fs";
+import { listMarketplace, installEntry, uninstallEntry } from "./marketplace.js";
 
 export const router = Router();
 
@@ -40,6 +43,64 @@ router.post("/wingman/deactivate", (_req: Request, res: Response) => {
   try {
     deactivate();
     res.json(getWingmanStatus());
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// ── Capabilities ─────────────────────────────────────────────────────────────
+
+router.get("/capabilities", (_req: Request, res: Response) => {
+  const force = _req.query.refresh === "true";
+  res.json(scanCapabilities(force));
+});
+
+router.get("/capabilities/content", (req: Request, res: Response) => {
+  const filePath = req.query.path as string;
+  if (!filePath) {
+    res.status(400).json({ error: "Missing path query param." });
+    return;
+  }
+  if (!existsSync(filePath)) {
+    res.status(404).json({ error: "File not found." });
+    return;
+  }
+  try {
+    const content = readFileSync(filePath, "utf-8");
+    res.json({ content });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ── Marketplace ──────────────────────────────────────────────────────────────
+
+router.get("/marketplace", (_req: Request, res: Response) => {
+  res.json(listMarketplace());
+});
+
+router.post("/marketplace/:id/install", (req: Request, res: Response) => {
+  try {
+    const record = installEntry(req.params.id, req.body.version);
+    res.status(201).json(record);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+router.post("/marketplace/:id/upgrade", (req: Request, res: Response) => {
+  try {
+    const record = installEntry(req.params.id, req.body.version);
+    res.json(record);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+router.delete("/marketplace/:id", (req: Request, res: Response) => {
+  try {
+    uninstallEntry(req.params.id);
+    res.status(204).end();
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }
