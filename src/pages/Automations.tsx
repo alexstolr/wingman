@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Play, Trash2, X } from "lucide-react";
+import { Plus, Play, Trash2, X, Pencil } from "lucide-react";
 import cronstrue from "cronstrue";
 import { CronExpressionParser } from "cron-parser";
 import type { Automation } from "../types";
@@ -61,6 +61,7 @@ const EMPTY_FORM = {
 export default function Automations() {
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [timezone, setTimezone] = useState("Asia/Jerusalem");
@@ -74,17 +75,45 @@ export default function Automations() {
     setAutomations(await res.json());
   }
 
+  function openEdit(a: Automation) {
+    setForm({
+      name: a.name,
+      scheduleType: a.scheduleType,
+      schedule: a.schedule,
+      taskType: a.taskType,
+      command: a.command,
+      cwd: a.cwd ?? "",
+      sync: a.sync,
+      enabled: a.enabled,
+    });
+    setEditingId(a.id);
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    await fetch("/api/automations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    if (editingId) {
+      await fetch(`/api/automations/${editingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+    } else {
+      await fetch("/api/automations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+    }
     setSubmitting(false);
-    setShowForm(false);
-    setForm(EMPTY_FORM);
+    closeForm();
     fetchAutomations();
   }
 
@@ -107,7 +136,7 @@ export default function Automations() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-semibold text-gray-900">Automations</h1>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
         >
           <Plus size={15} />
@@ -164,6 +193,13 @@ export default function Automations() {
                       Run now
                     </button>
                     <button
+                      onClick={() => openEdit(a)}
+                      className="text-gray-300 hover:text-gray-700 transition-colors"
+                      title="Edit"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
                       onClick={() => deleteAutomation(a.id)}
                       className="text-gray-300 hover:text-red-500 transition-colors"
                       title="Delete"
@@ -182,9 +218,11 @@ export default function Automations() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">New Automation</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingId ? "Edit Automation" : "New Automation"}
+              </h2>
               <button
-                onClick={() => setShowForm(false)}
+                onClick={closeForm}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X size={18} />
@@ -355,7 +393,7 @@ export default function Automations() {
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={closeForm}
                   className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
                 >
                   Cancel
@@ -365,7 +403,7 @@ export default function Automations() {
                   disabled={submitting}
                   className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-colors"
                 >
-                  {submitting ? "Creating…" : "Create"}
+                  {submitting ? (editingId ? "Saving…" : "Creating…") : (editingId ? "Save" : "Create")}
                 </button>
               </div>
             </form>

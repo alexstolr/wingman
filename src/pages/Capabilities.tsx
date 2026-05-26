@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { RefreshCw, X, Filter } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import MarkdownPreview from "../components/MarkdownPreview";
 import type { Capability, CapabilityType } from "../types";
 
 const TABS: { type: CapabilityType; label: string }[] = [
@@ -133,7 +132,7 @@ export default function Capabilities() {
   const countFor = (t: CapabilityType) => all.filter((c) => c.type === t).length;
 
   return (
-    <div className="px-6 py-10">
+    <div className="px-6 py-10 h-full overflow-y-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Capabilities</h1>
         <div className="flex items-center gap-3">
@@ -355,10 +354,8 @@ export default function Capabilities() {
                   {modal.content}
                 </pre>
               ) : (
-                <div className="px-6 py-5 prose prose-sm prose-gray max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {modal.content}
-                  </ReactMarkdown>
+                <div className="px-6 py-5">
+                  <MarkdownPreview content={modal.content} />
                 </div>
               )}
             </div>

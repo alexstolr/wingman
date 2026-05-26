@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Plus, Trash2, BookOpen, ChevronRight, ChevronDown, Folder as FolderIcon, FileText } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import MarkdownPreview from "../components/MarkdownPreview";
 import type { Document, Folder } from "../types";
 
 type SaveState = "saved" | "saving" | "unsaved";
@@ -139,7 +138,7 @@ export default function Documents() {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
+  const [viewMode, setViewMode] = useState<"edit" | "preview">("preview");
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [createMenu, setCreateMenu] = useState<CreateMenu | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
@@ -349,8 +348,8 @@ export default function Documents() {
             {viewMode === "edit" ? (
               <textarea value={content} onChange={(e) => handleContentChange(e.target.value)} className="w-full h-full px-6 py-5 text-sm text-gray-800 font-mono leading-relaxed resize-none focus:outline-none bg-white placeholder-gray-300" placeholder="Start writing in Markdown…" />
             ) : (
-              <div className="px-8 py-6 prose prose-sm prose-gray max-w-3xl">
-                {content ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown> : <p className="text-gray-300 text-sm">Nothing to preview.</p>}
+              <div className="px-8 py-6 max-w-3xl">
+                {content ? <MarkdownPreview content={content} /> : <p className="text-gray-300 text-sm">Nothing to preview.</p>}
               </div>
             )}
           </div>

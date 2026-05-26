@@ -61,10 +61,16 @@ function displayName(filePath: string): string {
 function typeFromPath(filePath: string): CapabilityType | null {
   const parts = filePath.split("/");
   for (let i = parts.length - 2; i >= 0; i--) {
-    if (TYPE_NAMES.has(parts[i].toLowerCase() as CapabilityType)) {
-      return parts[i].toLowerCase() as CapabilityType;
-    }
+    const part = parts[i].toLowerCase();
+    // Exact match (e.g. "skills", "rules")
+    if (TYPE_NAMES.has(part as CapabilityType)) return part as CapabilityType;
+    // Hyphenated folder match (e.g. "skills-cursor" → "skills")
+    const prefix = part.split("-")[0];
+    if (TYPE_NAMES.has(prefix as CapabilityType)) return prefix as CapabilityType;
   }
+  // Files sitting directly in a .wingman root (no type subfolder) are conventions
+  const parentDir = parts[parts.length - 2] ?? "";
+  if (parentDir === ".wingman" || parentDir === "wingman") return "conventions";
   return null;
 }
 

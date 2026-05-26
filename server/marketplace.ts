@@ -34,6 +34,17 @@ export interface MarketplaceEntry extends CatalogEntry {
   installedVersion?: string;
 }
 
+/** Extract `filename:` from YAML frontmatter, returns null if not present. */
+function parseFrontmatterFilename(content: string): string | null {
+  const trimmed = content.trimStart();
+  if (!trimmed.startsWith("---")) return null;
+  const end = trimmed.indexOf("\n---", 3);
+  if (end === -1) return null;
+  const block = trimmed.slice(3, end);
+  const match = block.match(/^filename:\s*(.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
 function loadCatalog(): CatalogEntry[] {
   try {
     return JSON.parse(readFileSync(CATALOG_PATH, "utf-8")) as CatalogEntry[];
@@ -68,10 +79,13 @@ export function installEntry(id: string, version: string): InstalledRecord {
   const ver = entry.versions.find((v) => v.version === version);
   if (!ver) throw new Error(`Version "${version}" not found for "${id}".`);
 
-  const typeDir = join(WINGMAN_DIR, entry.type);
+  // Conventions sit directly under .wingman/ — all other types get their own subfolder.
+  const typeDir = entry.type === "conventions" ? WINGMAN_DIR : join(WINGMAN_DIR, entry.type);
   if (!existsSync(typeDir)) mkdirSync(typeDir, { recursive: true });
 
-  const fileName = `${entry.name}.md`;
+  // Use `filename` from content frontmatter if present, otherwise fall back to entry name.
+  const frontmatterFilename = parseFrontmatterFilename(ver.content);
+  const fileName = frontmatterFilename ?? `${entry.name}.md`;
   const filePath = join(typeDir, fileName);
   writeFileSync(filePath, ver.content, "utf-8");
 

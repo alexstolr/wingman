@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Download, X } from "lucide-react";
 import VersionDiff from "../components/VersionDiff";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import MarkdownPreview from "../components/MarkdownPreview";
 import type { CapabilityType } from "../types";
 
 interface CatalogVersion {
@@ -327,8 +326,8 @@ export default function Marketplace() {
                   />
                 </div>
               ) : (
-                <div className="px-6 py-5 prose prose-sm prose-gray max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{modalVersion.content}</ReactMarkdown>
+                <div className="px-6 py-5">
+                  <MarkdownPreview content={modalVersion.content} />
                 </div>
               )}
             </div>

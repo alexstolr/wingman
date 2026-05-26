@@ -349,6 +349,17 @@ router.post("/automations", (req: Request, res: Response) => {
   res.status(201).json(automation);
 });
 
+router.put("/automations/:id", (req: Request, res: Response) => {
+  const automations = readStore<Automation[]>("automations.json", []);
+  const idx = automations.findIndex((a) => a.id === req.params.id);
+  if (idx === -1) { res.status(404).json({ error: "Not found" }); return; }
+  automations[idx] = { ...automations[idx], ...req.body, id: req.params.id };
+  writeStore("automations.json", automations);
+  unscheduleAutomation(req.params.id);
+  if (automations[idx].enabled) scheduleAutomation(automations[idx]);
+  res.json(automations[idx]);
+});
+
 router.delete("/automations/:id", (req: Request, res: Response) => {
   const automations = readStore<Automation[]>("automations.json", []);
   writeStore(

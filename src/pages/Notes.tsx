@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Plus, Trash2, FileText } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import MarkdownPreview from "../components/MarkdownPreview";
 import type { Note } from "../types";
 
 type SaveState = "saved" | "saving" | "unsaved";
@@ -11,7 +10,7 @@ export default function Notes() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
+  const [viewMode, setViewMode] = useState<"edit" | "preview">("preview");
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -185,9 +184,9 @@ export default function Notes() {
                 placeholder="Start writing in Markdown…"
               />
             ) : (
-              <div className="px-8 py-6 prose prose-sm prose-gray max-w-3xl">
+              <div className="px-8 py-6 max-w-3xl">
                 {content ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                  <MarkdownPreview content={content} />
                 ) : (
                   <p className="text-gray-300 text-sm">Nothing to preview.</p>
                 )}
