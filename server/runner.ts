@@ -45,7 +45,7 @@ function buildCommand(automation: Automation): string {
       return [
         `grok -p "${prompt}"`,
         "--yolo",
-        "--output-format json",
+        "--output-format streaming-json",
         cwd ? `--cwd "${cwd}"` : "",
       ].filter(Boolean).join(" ");
 
@@ -111,19 +111,39 @@ function parseToSessionEvents(raw: RawEvent, ts: string, taskType: string): Sess
     }
     // Skip "system" events — just init noise
   } else if (taskType === "grok") {
-    // Grok outputs a single JSON object: { text, thought, stopReason, sessionId, requestId }
-    if (raw.thought) {
-      events.push({ type: "thinking", text: String(raw.thought), ts });
+    // Grok streaming-json: each line is { type, data } or the end event
+    const data = raw.data !== undefined ? String(raw.data) : undefined;
+    switch (raw.type) {
+      case "text":
+        if (data) events.push({ type: "text", text: data, ts });
+        break;
+      case "thought":
+        if (data) events.push({ type: "thinking", text: data, ts });
+        break;
+      case "end":
+        events.push({
+          type: "result",
+          text: String(raw.stopReason ?? ""),
+          ts,
+        });
+        break;
+      case "tool_use":
+        events.push({
+          type: "tool_call",
+          toolName: String(raw.name ?? raw.tool ?? "tool"),
+          toolInput: typeof raw.input === "object" ? JSON.stringify(raw.input, null, 2) : String(raw.input ?? ""),
+          ts,
+        });
+        break;
+      case "tool_result":
+        events.push({
+          type: "tool_result",
+          toolResult: data ?? String(raw.content ?? ""),
+          isError: Boolean(raw.is_error),
+          ts,
+        });
+        break;
     }
-    if (raw.text) {
-      events.push({ type: "text", text: String(raw.text), ts });
-    }
-    // Treat the whole object as a result summary
-    events.push({
-      type: "result",
-      text: String(raw.stopReason ?? ""),
-      ts,
-    });
   }
 
   return events;
