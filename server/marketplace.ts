@@ -34,6 +34,38 @@ export interface MarketplaceEntry extends CatalogEntry {
   installedVersion?: string;
 }
 
+/**
+ * Called at server startup. For each catalog entry whose file already exists
+ * on disk (pre-committed or manually placed), seed an installed.json record
+ * so the marketplace shows it as installed without requiring a manual install.
+ */
+export function seedPreinstalledCapabilities(): void {
+  const catalog = loadCatalog();
+  const installed = loadInstalled();
+  let changed = false;
+
+  for (const entry of catalog) {
+    if (installed[entry.id]) continue; // already tracked
+
+    const latestVersion = entry.versions[entry.versions.length - 1];
+    const frontmatterFilename = parseFrontmatterFilename(latestVersion.content);
+    const fileName = frontmatterFilename ?? `${entry.name}.md`;
+    const typeDir = entry.type === "conventions" ? WINGMAN_DIR : join(WINGMAN_DIR, entry.type);
+    const filePath = join(typeDir, fileName);
+
+    if (existsSync(filePath)) {
+      installed[entry.id] = {
+        version: latestVersion.version,
+        installedAt: new Date().toISOString(),
+        path: filePath,
+      };
+      changed = true;
+    }
+  }
+
+  if (changed) saveInstalled(installed);
+}
+
 /** Extract `filename:` from YAML frontmatter, returns null if not present. */
 function parseFrontmatterFilename(content: string): string | null {
   const trimmed = content.trimStart();
