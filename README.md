@@ -18,7 +18,7 @@ Open [http://localhost:3002](http://localhost:3002) in your browser.
 | Tab | Purpose |
 |-----|---------|
 | **Home** | Activate Wingman (symlinks `~/.wingman`), configure workspace paths |
-| **Capabilities** | Browse all capabilities scanned from every AI harness on your machine (`.cursor`, `.claude`, `.wingman`, `.grok`, `.codex`, `.copilot`, `.fleet`) — global and per-repo |
+| **Capabilities** | Browse all capabilities scanned from every AI harness on your machine (`.cursor`, `.claude`, `.wingman`, `.grok`, `.codex`, `.copilot`) — global and per-repo |
 | **Notes** | Free-form notes for the user and agent; persistent across sessions |
 | **Documents** | Markdown and file documents organized in folders; persistent structured knowledge |
 | **Tasks** | Task board with list and Kanban views, status, labels, assignee, and deadlines |
@@ -64,3 +64,7 @@ Activating Wingman creates a symlink from `~/.wingman` to the `.wingman` folder 
 ## Data
 
 All user data (notes, documents, tasks, sessions, automations, settings) is stored as JSON in the `data/` directory, which is gitignored.
+
+## License
+
+Copyright (c) 2026 Alex Stolr. All Rights Reserved. See [LICENSE](./LICENSE) for details.
