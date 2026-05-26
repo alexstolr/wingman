@@ -74,14 +74,29 @@ export interface Automation {
   createdAt: string;
 }
 
+export interface SessionEvent {
+  type: "text" | "tool_call" | "tool_result" | "thinking" | "result" | "error" | "system";
+  text?: string;
+  toolName?: string;
+  toolInput?: string;
+  toolResult?: string;
+  isError?: boolean;
+  cost?: number;
+  durationMs?: number;
+  ts: string;
+}
+
 export interface Session {
   id: string;
   automationId: string;
   automationName: string;
+  command: string;
   startedAt: string;
   endedAt?: string;
   status: "running" | "completed" | "failed" | "stopped";
   output: string;
+  events?: SessionEvent[];
+  cost?: number;
   pid?: number;
   sync: boolean;
 }

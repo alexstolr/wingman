@@ -15,9 +15,9 @@ import Communications from "./pages/Communications";
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-white">
+      <div className="h-screen flex flex-col bg-white overflow-hidden">
         <Header />
-        <main>
+        <main className="flex-1 overflow-hidden">
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<Home />} />
