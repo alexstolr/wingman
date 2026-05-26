@@ -26,6 +26,22 @@ Open [http://localhost:3002](http://localhost:3002) in your browser.
 | **Automations** | Schedule AI tasks (cron or one-shot) using Claude Code, Grok, Cursor, or Codex |
 | **Marketplace** | Install, upgrade, and uninstall capabilities (rules, skills, hooks, agents, conventions, and more) into `~/.wingman` |
 
+## How to use
+
+1. **Enable Wingman on the Home page** — click the Enable button. This symlinks `~/.wingman` to the `.wingman` folder in this repo, making your capabilities globally available to every AI harness on your machine.
+
+2. **Activate it in your harness** — open the AI tool you use (Cursor, Claude, Grok, Codex, etc.) and ensure it picks up the global config. It should sync automatically. If Cursor doesn't pick it up, go to Cursor Settings → Rules and make sure it's loading global rules from the root `~/.cursor` folder.
+
+3. **Configure your workspace folders** — on the Home page, add the root directories where your repositories live. Wingman scans these to discover per-repo capabilities and merges them with your global ones.
+
+4. **Install capabilities from the Marketplace** — browse and install rules, skills, hooks, agents, and more. Installed capabilities land in `~/.wingman` and apply globally across everything you work on.
+
+5. **Add notes, tasks, and documents** — use these as persistent memory and context for your agents. When working with a harness, mention what's stored there — the agent will find it on its own. It can also update them, so your context stays in sync across sessions.
+
+6. **Set up automations** — schedule AI tasks to run on a cron or one-shot basis. Requires Claude Code or Grok installed and accessible on your machine. Once running, head to the **Sessions** tab to watch the live output, inspect tool calls, and review cost.
+
+> **Conventions and Index come pre-installed.** `~/.wingman/CONVENTIONS.md` ships with a baseline set of coding conventions that apply globally across every harness and repo. `INDEX.md` is predefined as a map of your Wingman setup so agents can orient themselves without scanning every file.
+
 ## Wingman activation
 
 Activating Wingman creates a symlink from `~/.wingman` to the `.wingman` folder in this repo. Capabilities installed from the marketplace are written there and become available to every harness that reads `~/.wingman`.
