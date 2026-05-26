@@ -18,9 +18,10 @@ export default function Header() {
     <header className="border-b border-gray-200 bg-white">
       <div className="px-6">
         <div className="flex items-center gap-8 h-14">
-          <span className="text-sm font-semibold text-gray-900 tracking-tight">
-            Wingman
-          </span>
+          <div className="flex items-center gap-2">
+            <img src="/wingman.png" alt="Wingman" className="h-10 w-10" />
+            <span className="text-sm font-semibold text-gray-900 tracking-tight">Wingman</span>
+          </div>
           <nav className="flex items-center gap-1 h-full">
             {tabs.map(({ label, path, Icon }) => (
               <NavLink
