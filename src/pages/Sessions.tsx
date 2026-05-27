@@ -30,6 +30,36 @@ const STATUS_META: Record<Session["status"], {
   stopped:   { label: "Stopped",   dot: "bg-gray-400",                 banner: "bg-gray-50 border-gray-200",   Icon: StopCircle,  iconClass: "text-gray-400" },
 };
 
+// ── Tool summary helper ───────────────────────────────────────────────────────
+
+const TOOL_PRIMARY_KEY: Record<string, string[]> = {
+  Read:      ["file_path"],
+  Write:     ["file_path"],
+  Edit:      ["file_path"],
+  Bash:      ["command"],
+  Glob:      ["glob_pattern", "pattern"],
+  Grep:      ["pattern"],
+  WebSearch: ["query"],
+  WebFetch:  ["url"],
+  Task:      ["description"],
+  Skill:     ["skill_name"],
+};
+
+function getToolSummary(toolName: string, toolInput: string): string {
+  try {
+    const input = JSON.parse(toolInput) as Record<string, unknown>;
+    const keys = TOOL_PRIMARY_KEY[toolName] ?? Object.keys(input);
+    for (const key of keys) {
+      const val = input[key];
+      if (typeof val === "string" && val.trim()) {
+        const trimmed = val.trim().replace(/\n/g, " ");
+        return trimmed.length > 90 ? trimmed.slice(0, 87) + "…" : trimmed;
+      }
+    }
+  } catch { /* not JSON */ }
+  return "";
+}
+
 // ── Event renderers ───────────────────────────────────────────────────────────
 
 function Collapsible({ label, children, defaultOpen = false }: {
@@ -73,7 +103,9 @@ function EventRow({ event, index }: { event: SessionEvent; index: number }) {
         </div>
       );
 
-    case "tool_call":
+    case "tool_call": {
+      const summary = event.toolInput ? getToolSummary(event.toolName ?? "", event.toolInput) : "";
+      const inputShort = (event.toolInput?.length ?? 0) < 400;
       return (
         <div key={index} className="flex gap-3 py-2">
           <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -83,15 +115,19 @@ function EventRow({ event, index }: { event: SessionEvent; index: number }) {
             <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border-b border-amber-200">
               <Code size={11} className="text-amber-700" />
               <span className="text-xs font-mono font-semibold text-amber-800">{event.toolName}</span>
+              {summary && (
+                <span className="text-xs font-mono text-amber-600 truncate flex-1">{summary}</span>
+              )}
             </div>
             {event.toolInput && (
-              <Collapsible label="Input">
+              <Collapsible label="Full input" defaultOpen={inputShort}>
                 <pre className="text-xs text-gray-700 px-3 py-2 font-mono overflow-x-auto whitespace-pre-wrap bg-white max-h-48 overflow-y-auto">{event.toolInput}</pre>
               </Collapsible>
             )}
           </div>
         </div>
       );
+    }
 
     case "tool_result":
       return (
@@ -105,7 +141,7 @@ function EventRow({ event, index }: { event: SessionEvent; index: number }) {
             <div className={`px-3 py-1.5 border-b text-xs font-medium ${event.isError ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
               {event.isError ? "Error" : "Result"}
             </div>
-            <Collapsible label="Output" defaultOpen={!!(event.toolResult && event.toolResult.length < 300)}>
+            <Collapsible label="Output" defaultOpen={true}>
               <pre className="text-xs text-gray-700 px-3 py-2 font-mono whitespace-pre-wrap overflow-x-auto bg-white max-h-48 overflow-y-auto">{event.toolResult || "(empty)"}</pre>
             </Collapsible>
           </div>
@@ -132,6 +168,21 @@ function EventRow({ event, index }: { event: SessionEvent; index: number }) {
               )}
             </div>
             {event.text && <p className="text-sm text-gray-700 whitespace-pre-wrap">{event.text}</p>}
+          </div>
+        </div>
+      );
+
+    case "error":
+      return (
+        <div key={index} className="flex gap-3 py-2">
+          <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <XCircle size={11} className="text-red-500" />
+          </div>
+          <div className="flex-1 border border-red-200 rounded-lg overflow-hidden">
+            <div className="px-3 py-1.5 bg-red-50 border-b border-red-200 text-xs font-medium text-red-700">
+              stderr
+            </div>
+            <pre className="text-xs text-red-800 px-3 py-2 font-mono whitespace-pre-wrap bg-white">{event.text}</pre>
           </div>
         </div>
       );

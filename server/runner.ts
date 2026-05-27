@@ -38,8 +38,8 @@ function buildCommand(automation: Automation): string {
 
   switch (automation.taskType) {
     case "claude":
-      // stream-json gives us text blocks, tool calls, thinking, and cost
-      return `claude -p "${prompt}" --output-format stream-json`;
+      // stream-json requires --verbose in -p mode; gives us text blocks, tool calls, thinking, and cost
+      return `claude -p "${prompt}" --output-format stream-json --verbose`;
 
     case "grok":
       return [
@@ -100,12 +100,14 @@ function parseToSessionEvents(raw: RawEvent, ts: string, taskType: string): Sess
         }
       }
     } else if (raw.type === "result") {
+      const isError = Boolean(raw.is_error);
       events.push({
         type: "result",
-        text: String(raw.result ?? raw.error ?? ""),
-        cost: typeof raw.cost_usd === "number" ? raw.cost_usd : undefined,
+        // Only include text for errors — success text duplicates the assistant message
+        text: isError ? String(raw.error ?? raw.result ?? "") : undefined,
+        cost: typeof raw.total_cost_usd === "number" ? raw.total_cost_usd : undefined,
         durationMs: typeof raw.duration_ms === "number" ? raw.duration_ms : undefined,
-        isError: Boolean(raw.is_error),
+        isError,
         ts,
       });
     }
@@ -163,9 +165,17 @@ function runSync(cmd: string, sessionId: string) {
 }
 
 function runAsync(cmd: string, sessionId: string, taskType: string) {
-  const child = spawn("bash", ["-c", cmd], { stdio: "pipe" });
+  const child = spawn("bash", ["-lc", cmd], { stdio: ["ignore", "pipe", "pipe"] });
   running.set(sessionId, child);
   updateSession(sessionId, { pid: child.pid });
+
+  child.on("error", (err) => {
+    const text = `Spawn error: ${err.message}`;
+    console.error(`[runner] ${text}`);
+    const errEvent: SessionEvent = { type: "error", text, ts: new Date().toISOString() };
+    events = [...events, errEvent];
+    updateSession(sessionId, { events, output: text });
+  });
 
   let output = "";
   let lineBuffer = "";
@@ -211,8 +221,11 @@ function runAsync(cmd: string, sessionId: string, taskType: string) {
   });
 
   child.stderr?.on("data", (data: Buffer) => {
-    output += data.toString();
-    updateSession(sessionId, { output });
+    const text = data.toString();
+    output += text;
+    const errorEvent: SessionEvent = { type: "error", text: text.trim(), ts: new Date().toISOString() };
+    events = [...events, errorEvent];
+    updateSession(sessionId, { output, events });
   });
 
   child.on("close", (code: number | null) => {

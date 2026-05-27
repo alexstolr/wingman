@@ -9,9 +9,9 @@ npm install
 npm run dev:all
 ```
 
-Open [http://localhost:3002](http://localhost:3002) in your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-> `dev:all` starts both the Vite frontend (port 3002) and the Express backend (port 3001) concurrently.
+> `dev:all` starts both the Vite frontend (port 3000) and the Express backend (port 3333) concurrently.
 
 ## Features
 
