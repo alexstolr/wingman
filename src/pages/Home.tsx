@@ -42,10 +42,14 @@ export default function Home() {
   const [newPath, setNewPath] = useState("");
   const [actionError, setActionError] = useState("");
   const [serverDown, setServerDown] = useState(false);
+  const [gitBehind, setGitBehind] = useState<number | null>(null);
+  const [gitPulling, setGitPulling] = useState(false);
+  const [gitError, setGitError] = useState("");
   const newInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchAll();
+    checkGitUpdates();
   }, []);
 
   useEffect(() => {
@@ -134,6 +138,31 @@ export default function Home() {
     }
   }
 
+  async function checkGitUpdates() {
+    try {
+      const res = await fetch("/api/git/updates");
+      const data = await res.json();
+      if (res.ok) setGitBehind(data.behind);
+    } catch {
+      // silently ignore — git check is best-effort
+    }
+  }
+
+  async function handlePull() {
+    setGitPulling(true);
+    setGitError("");
+    try {
+      const res = await fetch("/api/git/pull", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) setGitError(data.error);
+      else setGitBehind(0);
+    } catch {
+      setGitError("Server unreachable.");
+    } finally {
+      setGitPulling(false);
+    }
+  }
+
   return (
     <div className="px-6 py-10 max-w-2xl space-y-10">
 
@@ -143,6 +172,24 @@ export default function Home() {
           <code className="font-mono bg-amber-100 px-1 rounded">npm run dev:server</code>{" "}
           in a separate terminal, then{" "}
           <button onClick={fetchAll} className="underline hover:no-underline">retry</button>.
+        </div>
+      )}
+
+      {gitBehind !== null && gitBehind > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 flex items-center justify-between gap-4">
+          <span>
+            {gitBehind} new {gitBehind === 1 ? "commit" : "commits"} available on remote.
+          </span>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {gitError && <span className="text-xs text-red-500">{gitError}</span>}
+            <button
+              onClick={handlePull}
+              disabled={gitPulling}
+              className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {gitPulling ? "Pulling…" : "Get updates"}
+            </button>
+          </div>
         </div>
       )}
 

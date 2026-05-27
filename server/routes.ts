@@ -7,6 +7,7 @@ import { scheduleAutomation, unscheduleAutomation } from "./scheduler.js";
 import { getWingmanStatus, activate, deactivate } from "./wingman.js";
 import { scanCapabilities, clearCache } from "./scanner.js";
 import { readFileSync, existsSync, unlinkSync, realpathSync } from "fs";
+import { execSync } from "child_process";
 import { listMarketplace, installEntry, uninstallEntry } from "./marketplace.js";
 import { getHarnessStatuses, activateHarness, deactivateHarness, type HarnessName } from "./harness.js";
 
@@ -454,4 +455,31 @@ router.delete("/sessions/:id", (req: Request, res: Response) => {
     }
   }
   res.status(204).end();
+});
+
+// ── Git ───────────────────────────────────────────────────────────────────────
+
+router.get("/git/updates", (_req: Request, res: Response) => {
+  try {
+    execSync("git fetch", { cwd: process.cwd(), timeout: 10000, stdio: "pipe" });
+    const behind = parseInt(
+      execSync("git rev-list HEAD..@{upstream} --count", { cwd: process.cwd(), stdio: "pipe" })
+        .toString()
+        .trim(),
+      10
+    );
+    res.json({ behind: isNaN(behind) ? 0 : behind });
+  } catch {
+    res.json({ behind: 0 });
+  }
+});
+
+router.post("/git/pull", (_req: Request, res: Response) => {
+  try {
+    execSync("git pull", { cwd: process.cwd(), timeout: 30000, stdio: "pipe" });
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to pull.";
+    res.status(500).json({ error: message });
+  }
 });
