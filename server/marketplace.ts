@@ -1,16 +1,28 @@
-import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from "fs";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+  mkdirSync,
+  readdirSync,
+  copyFileSync,
+  rmSync,
+} from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { writeStore, readStore } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CATALOG_PATH = join(__dirname, "../marketplace/catalog.json");
+const PACKAGES_DIR = join(__dirname, "../marketplace/packages");
 const WINGMAN_DIR = join(process.cwd(), ".wingman");
 
 export interface CatalogVersion {
   version: string;
   changelog: string;
   content: string;
+  /** Folder name under marketplace/packages/ — installs as a directory under ~/.wingman/{type}/ */
+  package?: string;
 }
 
 export interface CatalogEntry {
@@ -26,12 +38,50 @@ export interface CatalogEntry {
 export interface InstalledRecord {
   version: string;
   installedAt: string;
+  /** Primary capability file (e.g. SKILL.md) for the scanner */
   path: string;
+  /** Directory removed on uninstall for package installs */
+  root?: string;
 }
 
 export interface MarketplaceEntry extends CatalogEntry {
   installed: boolean;
   installedVersion?: string;
+}
+
+function copyDirRecursive(src: string, dest: string): void {
+  mkdirSync(dest, { recursive: true });
+  for (const entry of readdirSync(src, { withFileTypes: true })) {
+    const srcPath = join(src, entry.name);
+    const destPath = join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirRecursive(srcPath, destPath);
+    } else {
+      copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+function installPackage(packageName: string, typeDir: string): { path: string; root: string } {
+  const packageSrc = join(PACKAGES_DIR, packageName);
+  if (!existsSync(packageSrc)) {
+    throw new Error(`Package "${packageName}" not found in marketplace/packages/.`);
+  }
+
+  const installDir = join(typeDir, packageName);
+  rmSync(installDir, { recursive: true, force: true });
+  copyDirRecursive(packageSrc, installDir);
+
+  const skillPath = join(installDir, "SKILL.md");
+  if (!existsSync(skillPath)) {
+    throw new Error(`Package "${packageName}" is missing SKILL.md.`);
+  }
+
+  return { path: skillPath, root: installDir };
+}
+
+function typeDirFor(entry: CatalogEntry): string {
+  return entry.type === "conventions" ? WINGMAN_DIR : join(WINGMAN_DIR, entry.type);
 }
 
 /**
@@ -45,12 +95,27 @@ export function seedPreinstalledCapabilities(): void {
   let changed = false;
 
   for (const entry of catalog) {
-    if (installed[entry.id]) continue; // already tracked
+    if (installed[entry.id]) continue;
 
     const latestVersion = entry.versions[entry.versions.length - 1];
+    const typeDir = typeDirFor(entry);
+
+    if (latestVersion.package) {
+      const skillPath = join(typeDir, latestVersion.package, "SKILL.md");
+      if (existsSync(skillPath)) {
+        installed[entry.id] = {
+          version: latestVersion.version,
+          installedAt: new Date().toISOString(),
+          path: skillPath,
+          root: join(typeDir, latestVersion.package),
+        };
+        changed = true;
+      }
+      continue;
+    }
+
     const frontmatterFilename = parseFrontmatterFilename(latestVersion.content);
     const fileName = frontmatterFilename ?? `${entry.name}.md`;
-    const typeDir = entry.type === "conventions" ? WINGMAN_DIR : join(WINGMAN_DIR, entry.type);
     const filePath = join(typeDir, fileName);
 
     if (existsSync(filePath)) {
@@ -111,21 +176,30 @@ export function installEntry(id: string, version: string): InstalledRecord {
   const ver = entry.versions.find((v) => v.version === version);
   if (!ver) throw new Error(`Version "${version}" not found for "${id}".`);
 
-  // Conventions sit directly under .wingman/ — all other types get their own subfolder.
-  const typeDir = entry.type === "conventions" ? WINGMAN_DIR : join(WINGMAN_DIR, entry.type);
+  const typeDir = typeDirFor(entry);
   if (!existsSync(typeDir)) mkdirSync(typeDir, { recursive: true });
 
-  // Use `filename` from content frontmatter if present, otherwise fall back to entry name.
-  const frontmatterFilename = parseFrontmatterFilename(ver.content);
-  const fileName = frontmatterFilename ?? `${entry.name}.md`;
-  const filePath = join(typeDir, fileName);
-  writeFileSync(filePath, ver.content, "utf-8");
+  let record: InstalledRecord;
 
-  const record: InstalledRecord = {
-    version,
-    installedAt: new Date().toISOString(),
-    path: filePath,
-  };
+  if (ver.package) {
+    const { path, root } = installPackage(ver.package, typeDir);
+    record = {
+      version,
+      installedAt: new Date().toISOString(),
+      path,
+      root,
+    };
+  } else {
+    const frontmatterFilename = parseFrontmatterFilename(ver.content);
+    const fileName = frontmatterFilename ?? `${entry.name}.md`;
+    const filePath = join(typeDir, fileName);
+    writeFileSync(filePath, ver.content, "utf-8");
+    record = {
+      version,
+      installedAt: new Date().toISOString(),
+      path: filePath,
+    };
+  }
 
   const installed = loadInstalled();
   installed[id] = record;
@@ -139,8 +213,18 @@ export function uninstallEntry(id: string): void {
   const record = installed[id];
   if (!record) throw new Error(`Entry "${id}" is not installed.`);
 
-  if (existsSync(record.path)) {
-    try { unlinkSync(record.path); } catch { /* already gone */ }
+  if (record.root && existsSync(record.root)) {
+    try {
+      rmSync(record.root, { recursive: true, force: true });
+    } catch {
+      /* already gone */
+    }
+  } else if (existsSync(record.path)) {
+    try {
+      unlinkSync(record.path);
+    } catch {
+      /* already gone */
+    }
   }
 
   delete installed[id];
