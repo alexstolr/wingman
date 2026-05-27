@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Play, Trash2, X, Pencil } from "lucide-react";
+import { Plus, Play, Trash2, X, Pencil, Info, ChevronDown } from "lucide-react";
 import cronstrue from "cronstrue";
 import { CronExpressionParser } from "cron-parser";
 import type { Automation } from "../types";
@@ -47,6 +47,28 @@ const TOOL_LABELS: Record<string, string> = Object.fromEntries(
   AI_TOOLS.map(({ value, label }) => [value, label])
 );
 
+type ModelSpec = { value: string; label: string; tier: "fast" | "balanced" | "powerful"; cost: string; desc: string };
+
+const MODELS_BY_PROVIDER: Partial<Record<string, ModelSpec[]>> = {
+  claude: [
+    { value: "",                   label: "Default",      tier: "balanced",  cost: "Sonnet pricing",   desc: "Uses whatever the Claude CLI defaults to (currently Sonnet 4.6). Safe choice if you're unsure." },
+    { value: "claude-haiku-4-5",   label: "Haiku 4.5",   tier: "fast",      cost: "$0.80 / $4 per M", desc: "Fastest and cheapest Claude model. Best for simple, high-frequency tasks where cost matters." },
+    { value: "claude-sonnet-4-6",  label: "Sonnet 4.6",  tier: "balanced",  cost: "$3 / $15 per M",   desc: "Balanced intelligence and speed. Good default for most automation tasks." },
+    { value: "claude-opus-4-5",    label: "Opus 4.5",    tier: "powerful",  cost: "$15 / $75 per M",  desc: "Most intelligent Claude model. Best for complex, nuanced tasks requiring deep reasoning." },
+  ],
+  grok: [
+    { value: "",          label: "Default",    tier: "balanced", cost: "Varies",            desc: "Uses the Grok CLI's current default model." },
+    { value: "grok-3-mini", label: "Grok 3 Mini", tier: "fast",  cost: "$0.30 / $0.50 per M", desc: "Fast and affordable xAI model with thinking mode. Good for structured reasoning at low cost." },
+    { value: "grok-3",    label: "Grok 3",     tier: "powerful", cost: "$3 / $15 per M",   desc: "xAI's flagship model. Strong at coding, math, and long-context analysis." },
+  ],
+};
+
+const TIER_STYLE: Record<ModelSpec["tier"], string> = {
+  fast:      "bg-green-50 border-green-200 text-green-800",
+  balanced:  "bg-blue-50 border-blue-200 text-blue-800",
+  powerful:  "bg-purple-50 border-purple-200 text-purple-800",
+};
+
 const EMPTY_FORM = {
   name: "",
   scheduleType: "cron" as const,
@@ -54,6 +76,8 @@ const EMPTY_FORM = {
   taskType: "claude" as const,
   command: "",
   cwd: "",
+  model: "claude-haiku-4-5",
+  allowSubagents: false,
   sync: false,
   enabled: true,
 };
@@ -64,6 +88,7 @@ export default function Automations() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [timezone, setTimezone] = useState("Asia/Jerusalem");
 
   useEffect(() => {
@@ -83,15 +108,20 @@ export default function Automations() {
       taskType: a.taskType,
       command: a.command,
       cwd: a.cwd ?? "",
+      model: a.model ?? "claude-haiku-4-5",
+      allowSubagents: a.allowSubagents ?? false,
       sync: a.sync,
       enabled: a.enabled,
     });
     setEditingId(a.id);
     setShowForm(true);
+    // Auto-expand settings if any non-default values are present
+    setShowSettings(!!(a.model || a.cwd || a.sync || a.allowSubagents));
   }
 
   function closeForm() {
     setShowForm(false);
+    setShowSettings(false);
     setEditingId(null);
     setForm(EMPTY_FORM);
   }
@@ -215,9 +245,9 @@ export default function Automations() {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
-            <div className="flex items-center justify-between mb-6">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">
                 {editingId ? "Edit Automation" : "New Automation"}
               </h2>
@@ -229,7 +259,8 @@ export default function Automations() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                 <input
@@ -316,24 +347,141 @@ export default function Automations() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">AI Tool</label>
-                <select
-                  value={form.taskType}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      taskType: e.target.value as typeof form.taskType,
-                    }))
-                  }
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                >
-                  {AI_TOOLS.map(({ value, label }) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+              {/* ── Harness + collapsible settings ── */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                {/* Harness row — always visible */}
+                <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-50">
+                  <label className="text-sm font-medium text-gray-700 flex-shrink-0">Harness</label>
+                  <select
+                    value={form.taskType}
+                    onChange={(e) => setForm((f) => ({ ...f, taskType: e.target.value as typeof form.taskType }))}
+                    className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  >
+                    {AI_TOOLS.map(({ value, label }) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowSettings((v) => !v)}
+                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
+                  >
+                    Settings
+                    <ChevronDown size={13} className={`transition-transform duration-200 ${showSettings ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
+
+                {/* Collapsible settings */}
+                {showSettings && (
+                  <div className="px-3 py-3 space-y-4 border-t border-gray-200">
+                    {/* Model */}
+                    {MODELS_BY_PROVIDER[form.taskType] && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Model</label>
+                        <div className="flex flex-wrap gap-2">
+                          {MODELS_BY_PROVIDER[form.taskType]!.map((m) => {
+                            const selected = form.model === m.value;
+                            return (
+                              <button
+                                key={m.value || "__default__"}
+                                type="button"
+                                onClick={() => setForm((f) => ({ ...f, model: m.value }))}
+                                className={[
+                                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-colors",
+                                  selected
+                                    ? `${TIER_STYLE[m.tier]} font-medium shadow-sm`
+                                    : "border-gray-200 text-gray-600 hover:border-gray-400 bg-white",
+                                ].join(" ")}
+                              >
+                                {m.label}
+                                <div className="relative group">
+                                  <Info size={12} className={selected ? "opacity-60" : "text-gray-400"} />
+                                  <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:block z-30 w-56 bg-gray-900 text-white text-xs rounded-xl p-3 shadow-xl">
+                                    <p className="font-semibold mb-1">{m.label}</p>
+                                    <p className="text-gray-300 leading-relaxed mb-2">{m.desc}</p>
+                                    <p className="text-gray-400 font-mono">{m.cost}</p>
+                                    <div className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-3 h-3 bg-gray-900 rotate-45" />
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sub-agents */}
+                    {form.taskType === "claude" && (
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={form.allowSubagents}
+                          onClick={() => setForm((f) => ({ ...f, allowSubagents: !f.allowSubagents }))}
+                          className={[
+                            "relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none",
+                            form.allowSubagents ? "bg-gray-900" : "bg-gray-200",
+                          ].join(" ")}
+                        >
+                          <span className={[
+                            "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition duration-200",
+                            form.allowSubagents ? "translate-x-4" : "translate-x-0",
+                          ].join(" ")} />
+                        </button>
+                        <span className="text-sm text-gray-700">Sub-agents</span>
+                        <div className="relative group">
+                          <Info size={13} className="text-gray-400 cursor-help" />
+                          <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:block z-30 w-64 bg-gray-900 text-white text-xs rounded-xl p-3 shadow-xl">
+                            <p className="font-semibold mb-1">Sub-agents (Task tool)</p>
+                            <p className="text-gray-300 leading-relaxed mb-2">When enabled, Claude can spin up a second Claude instance for sub-tasks — better for complex prompts.</p>
+                            <p className="text-gray-300 leading-relaxed">Disable for simple tasks to cut cost and avoid unnecessary delegation.</p>
+                            <div className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-3 h-3 bg-gray-900 rotate-45" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Working directory */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                        Working directory
+                        {form.taskType === "grok" && (
+                          <span className="ml-2 normal-case font-normal text-gray-400">passed as <code className="font-mono">--cwd</code></span>
+                        )}
+                      </label>
+                      <input
+                        value={form.cwd}
+                        onChange={(e) => setForm((f) => ({ ...f, cwd: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900"
+                        placeholder="/Users/you/Workspace/my-repo"
+                      />
+                    </div>
+
+                    {/* Execution */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Execution</label>
+                      <div className="flex gap-2">
+                        {([
+                          [false, "Async — background"],
+                          [true, "Sync — open terminal"],
+                        ] as const).map(([val, label]) => (
+                          <button
+                            key={String(val)}
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, sync: val }))}
+                            className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                              form.sync === val
+                                ? "border-gray-900 bg-gray-900 text-white"
+                                : "border-gray-200 text-gray-600 hover:border-gray-400"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -350,47 +498,9 @@ export default function Automations() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Working directory
-                  {form.taskType === "grok" && (
-                    <span className="ml-2 text-xs font-normal text-gray-400">passed as <code className="font-mono">--cwd</code></span>
-                  )}
-                </label>
-                <input
-                  value={form.cwd}
-                  onChange={(e) => setForm((f) => ({ ...f, cwd: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  placeholder="/Users/you/Workspace/my-repo"
-                />
-              </div>
+            </div>{/* end scroll area */}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Execution</label>
-                <div className="flex gap-2">
-                  {(
-                    [
-                      [false, "Async — background"],
-                      [true, "Sync — open terminal"],
-                    ] as const
-                  ).map(([val, label]) => (
-                    <button
-                      key={String(val)}
-                      type="button"
-                      onClick={() => setForm((f) => ({ ...f, sync: val }))}
-                      className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                        form.sync === val
-                          ? "border-gray-900 bg-gray-900 text-white"
-                          : "border-gray-200 text-gray-600 hover:border-gray-400"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
                 <button
                   type="button"
                   onClick={closeForm}

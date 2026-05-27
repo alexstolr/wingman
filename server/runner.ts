@@ -37,9 +37,12 @@ function buildCommand(automation: Automation): string {
   const cwd = automation.cwd?.trim();
 
   switch (automation.taskType) {
-    case "claude":
+    case "claude": {
       // stream-json requires --verbose in -p mode; gives us text blocks, tool calls, thinking, and cost
-      return `claude -p "${prompt}" --output-format stream-json --verbose`;
+      const model = automation.model?.trim() ? `--model ${automation.model.trim()}` : "";
+      const noAgents = automation.allowSubagents === false ? "--disallowed-tools Task,TaskOutput" : "";
+      return [`claude -p "${prompt}"`, model, noAgents, "--output-format stream-json --verbose"].filter(Boolean).join(" ");
+    }
 
     case "grok":
       return [

@@ -6,6 +6,8 @@ export interface Automation {
   taskType: "claude" | "grok" | "cursor" | "codex";
   command: string;
   cwd?: string;
+  model?: string;
+  allowSubagents?: boolean;
   sync: boolean;
   enabled: boolean;
   createdAt: string;
